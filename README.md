@@ -63,8 +63,6 @@ using module .\SQLSimplePS.psm1
 $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
 
 [SQLMap]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
-
-
 ```
 
 Execute only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). 
