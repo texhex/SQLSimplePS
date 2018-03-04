@@ -8,7 +8,7 @@ SQL Simple is an attempt to make handling SQL with PowerShell easier and more se
 
 ## Usage
 
-As it uses classes, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` to the folder where your script is, then add the following command as the first command in your script:
+As it uses classes, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is, then add the following command as the first command in your script:
 
 ```
  using module .\SQLSimplePS.psm1
@@ -69,8 +69,7 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 
 Execute only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). 
 
-If you want to query the database, use the Query() command which returns a hash table:
-
+If you want to query the database, use the Query() command which returns a hash table. In case you are new to hash tables, please see [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
 ```powershelll
 using module .\SQLSimplePS.psm1
 
@@ -78,9 +77,8 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 
 [SQLMap]::Query("SELECT * FROM dbo.TestTable", $connectionString)
 
-```
 Result:
-```powershelll
+
 Name                           Value
 ----                           -----
 ID                             1
@@ -91,6 +89,26 @@ ID                             2
 Name                           Second Test
 IntValue                       9
 NumericValue                   45,66
+```
+
+
+:exclamation: **Please do not stop here and think about using these two functions and some string replacement to get your task done. String replacement and SQL is a horrifying bad idea - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement. Please read on.**
+
+
+## Transaction isolation level
+
+SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to “Snapshot isolation” which works best for most tasks.
+
+However, you might want to run command in databases that do not support Snapshot isolation. This will cause the error “Exception calling "Commit" with "0" argument(s): "This SqlTransaction has completed; it is no longer usable."
+
+Both Execute() and Query() support to specify a different isolation level:
+
+```powershelll
+using module .\SQLSimplePS.psm1
+
+$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
+
+[SQLMap]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
 ```
 
 
