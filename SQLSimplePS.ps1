@@ -1,5 +1,5 @@
 # SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.2.3
+# Version 1.2.4
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -817,7 +817,48 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 
 #[SQLMap]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
 
-[SQLMap]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
+#[SQLMap]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
+
+
+$map = [SQLMap]::new($connectionString)
+
+$insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+
+$insertCommand.AddMappingWithData("Name", "From SQLSimplePS_First", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
+
+$map.AddCommand($insertCommand)
+
+$map.Execute()
+
+
+
+<#
+$map = [SQLMap]::new("[dbo].[TestTable]", $connectionString)
+
+#Create the delete command and add it (no mapping nor data, just the command as we delete the contents of the entire table)
+$map.AddCommand( [SQLMapCommand]::new("DELETE FROM @@OBJECT_NAME@@;") )
+
+#Create the insert command
+$insertCommand = [SQLMapCommand]::new([SQLCommandTemplate]::Insert)
+#This is the same as writing
+#$command = [SQLMapCommand]::new("INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);")
+#Note: To get the inserted ID from Execute() use this template:
+#$command.SQLTemplate="INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);"
+
+#Add directly some values 
+#First parameter is the SQL Server column name/parameter, second is the name of the property to get the data from, final parameter is the SQL Server data type
+$insertCommand.AddMappingWithData("Name", "From SQLSimplePS_First", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 33.44, [Data.SqlDbType]::Decimal)
+
+#Add the insert command
+$map.AddCommand($insertCommand)
+
+#Execute it
+$map.Execute()
+#>
 
 
 
