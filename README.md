@@ -88,8 +88,9 @@ IntValue                       9
 NumericValue                   45,66
 ```
 
-
+---
 :exclamation: **Please do not stop here and think about using these two functions and some string replacement to get your task done. String replacement and SQL is a horrifying bad idea - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement. Please read on.**
+---
 
 
 ## Transaction isolation level
