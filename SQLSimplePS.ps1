@@ -824,9 +824,13 @@ $map = [SQLMap]::new($connectionString)
 
 $insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
-$insertCommand.AddMappingWithData("Name", "From SQLSimplePS_First", [Data.SqlDbType]::NVarChar)
-$insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
-$insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
+$badName=@"
+'); DELETE FROM DBO.USERS; GO --
+"@
+
+$insertCommand.AddMappingWithData("Name", $badName, [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 33, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
 $map.AddCommand($insertCommand)
 

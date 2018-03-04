@@ -111,7 +111,7 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 
 ## Using parametrized queries
 
-The static methods are for very simple tasks enough, but for more complex tasks you should create an instance of SQLMap and add an instance of a SQLMapCommand to it. To add a third row to the *TestTable*, use the following:
+The static methods are for very simple tasks enough, but for more complex tasks you should create an instance of SQLMap and add an instance of a SQLMapCommand to it. To add a third row to *TestTable*, use the following code:
 
 ```powershelll
 using module .\SQLSimplePS.psm1
@@ -129,18 +129,16 @@ $map.Execute()
 
 This will return “3” as ID of the row that have been inserted. 
 
-If this looks like more code for the exact same task, this is correct. However, this changes when we do not want to have the values inside the SQL, but use parameters.
+If this looks like more code for the exact same task, this is correct. However, this changes when we do not want to have the values inside the SQL command, but supply them seperatly using parameters.
 
-Parameters are placeholders that will be get their value a runtime and are processed by SQL Server directly. SQL Simple expects the parameters to have the exact same name as the column they are for.
-
-The above noted SQL looks like this when using parameters:
+Parameters are placeholders that will be get their value a runtime and are processed by SQL Server directly. SQL Simple expects the parameters to have the exact same name as the column they are for. The above noted SQL command looks like this when using parameters:
 
 ```sql
 INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);
 ```
 
 To supply the data those parameters will get, we can use the function ``AddMappingWithData()``:
-```powershelll
+```powershell
 $insertCommand.AddMappingWithData("Name", "Fourth Test", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
@@ -154,7 +152,7 @@ $map = [SQLMap]::new($connectionString)
 
 $insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
-$insertCommand.AddMappingWithData("Name", "From SQLSimplePS_First", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("Name", "Fourth Test", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
 
@@ -163,14 +161,33 @@ $map.AddCommand($insertCommand)
 $map.Execute()
 ```
 
+This will return 4, as this is the ID of the row we just inserted.
 
+One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster but in normal scenarios this effect is neglectable. What makes them great is that they are immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)).
 
+Suppose we would use string replacement and we get a name like this:
+```sql
+'); DELETE FROM DBO.USERS; GO --'
+```
 
+When using string replacement, we would be in big trouble, but with parameters we can do this:
 
+```powershell
+$map = [SQLMap]::new($connectionString)
 
+$insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
+$badName=@"
+'); DELETE FROM DBO.USERS; GO --
+"@
 
+$insertCommand.AddMappingWithData("Name", $badName, [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 33, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
+$map.AddCommand($insertCommand)
 
+$map.Execute()
+```
 
-
+SQL Simple will return 5 as ID because *$badName* was not part of the SQL, but just a value that was replaced at runtime.
