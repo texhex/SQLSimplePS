@@ -113,7 +113,7 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 
 The static methods are for very simple tasks enough, but for more complex tasks you should create an instance of SQLMap and add an instance of a SQLMapCommand to it. To add a third row to *TestTable*, use the following code:
 
-```powershelll
+```powershell
 using module .\SQLSimplePS.psm1
 
 $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
