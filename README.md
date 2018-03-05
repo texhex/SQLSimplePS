@@ -118,13 +118,13 @@ using module .\SQLSimplePS.psm1
 
 $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-$map = [SQLSimple]::new($connectionString)
+$sql = [SQLSimple]::new($connectionString)
 
 $insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Third Test', 11, 78.99);")
 
-$map.AddCommand($insertCommand)
+$sql.AddCommand($insertCommand)
 
-$map.Execute()
+$sql.Execute()
 ```
 
 This will return “3” as ID of the row that have been inserted. 
