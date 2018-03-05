@@ -304,7 +304,7 @@ Notes:
 * Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mappings are used, the command will fail
 
 
-## Using external data mapping
+## Using the DATA property
 
 Until now, all command only added a single row but in most cases you want to deal with as many rows you require. 
 
@@ -335,7 +335,7 @@ dbo.TestTable.IntValue = Get-Process Handles
 dbo.TestTable.NumericValue = Get-Process CPU 
 ```
 
-The code to create this mapping is by creating a SQLSimpleColumn which requires three parameters
+The code to create this mapping is  creating a SQLSimpleColumn which requires three parameters:
 
 * **Column Name** (*Name*) - The name of the SQL Server column the data should go
 * **Property Name** (*ProcessName*) - The name of the property from the data to get the value
@@ -352,6 +352,9 @@ To declare it in a single line and add it, use this syntax:
 $insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
 ```
 
+This mapping means, that SQL Simple will query each object you added to the ``Data`` property for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
+
+The entire code looks like this:
 
 ```powershell
 #Get list of processes
@@ -371,10 +374,32 @@ $insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.S
 $insertCommand.AddMapping( [SQLSimpleColumn]::new("IntValue", "Handles", [Data.SqlDbType]::int) ) 
 $insertCommand.AddMapping( [SQLSimpleColumn]::new("NumericValue", "CPU", [Data.SqlDbType]::Decimal) ) 
 
-#Assign the data property which holds the data that is used as data for parameters
+#Assign the data property which holds the data that is used as the values for the mapping
 $insertCommand.Data=$procs
 
 $sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
+
+When executed, all running processes are saved to *TestTable* and we can query the table for ApplicationFrameHost (first entry):
+
+```powershell
+[SQLSimple]::Query("SELECT * FROM TestTable where IntValue=382", $connectionString)
+
+Name                           Value
+----                           -----
+ID                             239
+Name                           ApplicationFrameHost
+IntValue                       382
+NumericValue                   1,00
+```
+
+This was the output of get-process:
+
+```powershell
+Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
+-------  ------    -----      -----     ------     --  -- -----------
+    382      22    18868      31940       1,00   9572   1 ApplicationFrameHost
+```
+
