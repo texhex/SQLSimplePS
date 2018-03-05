@@ -276,7 +276,7 @@ $sqls.Execute()
 ```
 
 
-:exclamation: **Note that @@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them. **
+:exclamation: **Note that @@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.**
 
 
 Because deleting all records, then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for this simple tasks. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
@@ -299,9 +299,82 @@ $sqls.Execute()
 ```
 
 Notes:
-* All templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an ID column or it isn't the primary key, the templates are of no use for you.
+* All templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an column of this name or it isn't the primary key, the templates are of no use for you.
 * Beside that, the insert template should work for most cases
-* Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mapping are used, the command will fail
+* Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mappings are used, the command will fail
 
 
+## Using external data mapping
 
+Until now, all command only added a single row but in most cases you want to deal with as many rows you require. 
+
+SQL Simple supports this by using the ``Data`` property and mapping the properties of these external objects to the SQL Server object. 
+
+For this example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more than 0 CPU and less than 10:
+
+```powershell
+get-process | where-object CPU -gt 0 | where-object CPU -lt 10
+
+Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
+-------  ------    -----      -----     ------     --  -- -----------
+    382      22    18868      31940       1,00   9572   1 ApplicationFrameHost
+    624      15    11184      15440       0,17  10712   1 CodeHelper
+    259      14     5368      16924       1,20   1956   1 conhost
+    110       7     5260        504       0,11  10996   1 conhost
+    110       7     5268      10032       0,02  12788   1 conhost
+    134      10     7024      11204       0,41  20132   1 conhost
+    215      17    14824        164       0,09   8252   1 DipAwayMode
+
+```
+
+The mapping is as follows:
+
+```powershell
+dbo.TestTable.Name = Get-Process ProcessName 
+dbo.TestTable.IntValue = Get-Process Handles  
+dbo.TestTable.NumericValue = Get-Process CPU 
+```
+
+The code to create this mapping is by creating a SQLSimpleColumn which requires three parameters
+
+* **Column Name** (*Name*) - The name of the SQL Server column the data should go
+* **Property Name** (*ProcessName*) - The name of the property from the data to get the value
+* **Data Type** (*NVarChar*) - The data type of the column in SQL Server
+
+For the first column, the SQLSimpleColumn would be declared as follows:
+
+```powershell
+$col=[SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
+```
+
+To declare it in a single line and add it, use this syntax:
+```powershell
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
+```
+
+
+```powershell
+#Get list of processes
+$procs=get-process | where-object CPU -gt 0 | where-object CPU -lt 10
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname="dbo.TestTable"
+
+#First delete all rows
+$sqls.AddCommand("DELETE FROM dbo.TestTable")
+
+#Use standard insert template
+$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+
+#Create the mapping
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("IntValue", "Handles", [Data.SqlDbType]::int) ) 
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("NumericValue", "CPU", [Data.SqlDbType]::Decimal) ) 
+
+#Assign the data property which holds the data that is used as data for parameters
+$insertCommand.Data=$procs
+
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
+```
