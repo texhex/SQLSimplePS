@@ -1,5 +1,5 @@
 # SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.3.0
+# Version 1.3.1
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -596,19 +596,17 @@ class SQLSimpleCommand
         {
             Delete
             {
-                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;"
+                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID WHERE @@COLUMN@@=@@PARAMETER@@;"
             }
 
             Insert
             {
-                #$this.SQLTemplate = "INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);"
-                #To get the inserted ID use this template:
                 $this.SQLTemplate = "INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);"
             }
 
             Update
             {
-                $this.SQLTemplate = "UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@;"
+                $this.SQLTemplate = "UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@ OUTPUT Inserted.ID;"
 
             }
         }
@@ -831,7 +829,7 @@ class SQLSimpleColumn
 
 #using module .\SQLSimplePS.psm1
 
-#$connectionString = "Server=TOINV-CORP-1\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
+#$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
 #$connectionString = "Server=TOINV-CORP-1\SQLEXPRESS; Database=SecondaryInventory; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
@@ -839,8 +837,29 @@ class SQLSimpleColumn
 
 #[SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString)
 
+<#
+$procs=get-process | where-object CPU -gt 0 | where-object CPU -lt 10
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname="dbo.TestTable"
+
+$sqls.AddCommand("DELETE FROM dbo.TestTable")
+
+$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("IntValue", "Handles", [Data.SqlDbType]::int) ) 
+$insertCommand.AddMapping( [SQLSimpleColumn]::new("NumericValue", "CPU", [Data.SqlDbType]::Decimal) ) 
+
+$insertCommand.Data=$procs
+
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
 
 
+[SQLSimple]::Query("SELECT * FROM TestTable where IntValue=382", $connectionString)
+#>
 
 <#
 $sql = [SQLSimple]::new($connectionString)

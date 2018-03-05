@@ -403,3 +403,6 @@ Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
     382      22    18868      31940       1,00   9572   1 ApplicationFrameHost
 ```
 
+Thanks for reading!
+
+ENDE
