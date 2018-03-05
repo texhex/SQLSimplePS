@@ -276,7 +276,7 @@ $sqls.Execute()
 ```
 
 
-:exclamation: **@@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them. **
+:exclamation: **Note that @@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them. **
 
 
 Because deleting all records, then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for this simple tasks. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
