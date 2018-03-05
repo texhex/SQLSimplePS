@@ -88,7 +88,7 @@ NumericValue                   45,66
 
 SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* which works best for most tasks.
 
-However, you might want to run command in databases that do not support Snapshot isolation. This will cause the error *Exception calling "Commit" with "0" argument(s): "This SqlTransaction has completed; it is no longer usable.*
+However, you might want to run command in databases that do not support Snapshot isolation. This will cause the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*
 
 Both ``Execute()`` and ``Query()`` support to specify a different isolation level:
 
@@ -100,6 +100,18 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 [SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
 ```
 
+When using an instance of SQL Simple, you can define the isolation level like this:
+
+```powershell
+using module .\SQLSimplePS.psm1
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
+
+...
+```
+
+
 ## Do not use string replacement 
 
 :exclamation: **Please do not stop here and think about using these functions and some string replacement to get your task done. String replacement and SQL is a horrifying bad idea - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement. Please read on.**
@@ -107,20 +119,20 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 
 ## Using parametrized queries
 
-The static methods are for very simple tasks enough, but for more complex tasks you should create an instance of SQLSimple and add an instance of a SQLSimpleCommand to it. To add a third row to *TestTable*, use the following code:
+The static methods work for  simple tasks, but for more complex tasks you should create an instance of SQLSimple and add instance(s) of SQLSimpleCommand to it. To add a third row to *TestTable*, use the following code:
 
 ```powershell
 using module .\SQLSimplePS.psm1
 
 $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-$sql = [SQLSimple]::new($connectionString)
+$sqls = [SQLSimple]::new($connectionString)
 
 $insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Third Test', 11, 78.99);")
 
-$sql.AddCommand($insertCommand)
+$sqls.AddCommand($insertCommand)
 
-$sql.Execute()
+$sqls.Execute()
 ```
 
 This will return “3” as ID of the row that have been inserted. 
@@ -144,7 +156,7 @@ The function first expects takes the name of the column where the data goes (in 
 The entire code then looks like this:
 
 ```powershell
-$sql = [SQLSimple]::new($connectionString)
+$sqls = [SQLSimple]::new($connectionString)
 
 $insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
@@ -152,14 +164,14 @@ $insertCommand.AddMappingWithData("Name", "Fourth Test", [Data.SqlDbType]::NVarC
 $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
 
-$sql.AddCommand($insertCommand)
+$sqls.AddCommand($insertCommand)
 
-$sql.Execute()
+$sqls.Execute()
 ```
 
 This will return 4, as this is the ID of the row we just inserted.
 
-One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster but in normal scenarios this effect is neglectable. What makes them great is that they are immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)).
+One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster - but in normal scenarios this effect is neglectable. What makes them great is that they are nearly immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)).
 
 Suppose we would use string replacement and we get a name like this:
 ```sql
@@ -169,7 +181,7 @@ Suppose we would use string replacement and we get a name like this:
 When using string replacement, we would be in big trouble, but with parameters we can do this:
 
 ```powershell
-$sql = [SQLSimple]::new($connectionString)
+$sqls = [SQLSimple]::new($connectionString)
 
 $insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
@@ -181,9 +193,67 @@ $insertCommand.AddMappingWithData("Name", $badName, [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 33, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
-$sql.AddCommand($insertCommand)
+$sqls.AddCommand($insertCommand)
 
-$sql.Execute()
+$sqls.Execute()
 ```
 
 SQL Simple will return 5 as ID because *$badName* was not part of the SQL, but just a value that was replaced at runtime.
+
+
+It is also possible to query the database using parameters:
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+
+$selectCommand = [SQLSimpleCommand]::new("SELECT * from dbo.TestTable WHERE IntValue < @IntValue;")
+
+$selectCommand.AddMappingWithData("IntValue", 12, [Data.SqlDbType]::Int)
+
+$sqls.AddCommand($selectCommand)
+
+$sqls.Query()
+```
+
+This query will return three rows: First Test, Second Test and Third Test as their IntValue are below 12).
+
+
+## Using several parametrized queries at once
+
+SQL Simple supports adding more than command and execute them in one go. A typical example is to clear a table before adding new data. 
+
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+
+$sqls.AddCommand("DELETE FROM dbo.TestTable")
+
+$sqls.AddCommand("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Chain Test 1', 11, 11.11);")
+
+$sqls.Execute()
+```
+
+When executed, *TestTable* will only contain one row. SQL Simple will execute all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back and the database will be in the same state before the command (no changes are made). 
+
+
+Of course, you can also use ``AddMappingWithData()`` with several commands. But please note that each command requires their own mapping. 
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+
+$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable WHERE IntValue = @IntValue")
+$deleteCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
+$sqls.AddCommand($deleteCommand)
+
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand.AddMappingWithData("Name", "Chain Test 2", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
+```
+
+This command will first delete and record with a IntValue of 2 and then 
+
+
