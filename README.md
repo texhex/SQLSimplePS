@@ -39,19 +39,19 @@ GO
 This Connection String is then used to connect to the database, which assumes a local installed SQL Server Express Edition. Please change it to fit your environment.
 
 ```
-$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTests;"
+$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 ```
 
 ## Single line execute
 
-To add a single row of data, we can use a single command, the static function Execute()of SQLMap:
+To add a single row of data, we can use a single command, the static function Execute()of SQLSimple:
 
 ```powershell
 using module .\SQLSimplePS.psm1
 
-$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
+$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-[SQLMap]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) VALUES('First Test', 7, 12.3)", $connectionString)
+[SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) VALUES('First Test', 7, 12.3)", $connectionString)
 ```
 
 This will not return anything, however if we add an [OUTPUT clause]( https://docs.microsoft.com/en-us/sql/t-sql/queries/output-clause-transact-sql) the return will be “2” as the second row has the ID of 2
@@ -59,9 +59,9 @@ This will not return anything, however if we add an [OUTPUT clause]( https://doc
 ```powershell
 using module .\SQLSimplePS.psm1
 
-$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
+$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-[SQLMap]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
+[SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
 ```
 
 Execute only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). 
@@ -70,9 +70,9 @@ If you want to query the database, use the Query() command which returns a hash 
 ```powershell
 using module .\SQLSimplePS.psm1
 
-$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
+$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-[SQLMap]::Query("SELECT * FROM dbo.TestTable", $connectionString)
+[SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString)
 
 Result:
 
@@ -99,9 +99,9 @@ Both Execute() and Query() support to specify a different isolation level:
 ```powershell
 using module .\SQLSimplePS.psm1
 
-$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
+$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-[SQLMap]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
+[SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
 ```
 
 ## Do not use string replacement 
@@ -111,16 +111,16 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 
 ## Using parametrized queries
 
-The static methods are for very simple tasks enough, but for more complex tasks you should create an instance of SQLMap and add an instance of a SQLMapCommand to it. To add a third row to *TestTable*, use the following code:
+The static methods are for very simple tasks enough, but for more complex tasks you should create an instance of SQLSimple and add an instance of a SQLSimpleCommand to it. To add a third row to *TestTable*, use the following code:
 
 ```powershell
 using module .\SQLSimplePS.psm1
 
-$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLMapTest;"
+$connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 
-$map = [SQLMap]::new($connectionString)
+$map = [SQLSimple]::new($connectionString)
 
-$insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Third Test', 11, 78.99);")
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Third Test', 11, 78.99);")
 
 $map.AddCommand($insertCommand)
 
@@ -148,17 +148,17 @@ The function first expects takes the name of the column where the data goes (in 
 The entire code then looks like this:
 
 ```powershell
-$map = [SQLMap]::new($connectionString)
+$sql = [SQLSimple]::new($connectionString)
 
-$insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 $insertCommand.AddMappingWithData("Name", "Fourth Test", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
 
-$map.AddCommand($insertCommand)
+$sql.AddCommand($insertCommand)
 
-$map.Execute()
+$sql.Execute()
 ```
 
 This will return 4, as this is the ID of the row we just inserted.
@@ -173,9 +173,9 @@ Suppose we would use string replacement and we get a name like this:
 When using string replacement, we would be in big trouble, but with parameters we can do this:
 
 ```powershell
-$map = [SQLMap]::new($connectionString)
+$sql = [SQLSimple]::new($connectionString)
 
-$insertCommand = [SQLMapCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 $badName=@"
 '); DELETE FROM DBO.USERS; GO --
@@ -185,9 +185,9 @@ $insertCommand.AddMappingWithData("Name", $badName, [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 33, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
-$map.AddCommand($insertCommand)
+$sql.AddCommand($insertCommand)
 
-$map.Execute()
+$sql.Execute()
 ```
 
 SQL Simple will return 5 as ID because *$badName* was not part of the SQL, but just a value that was replaced at runtime.
