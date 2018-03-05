@@ -233,7 +233,7 @@ $sqls.AddCommand("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT
 $sqls.Execute()
 ```
 
-When executed, *TestTable* will only contain one row. SQL Simple will execute all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back and the database will be in the same state before the command (no changes are made). 
+When executed, *TestTable* will only contain one row. SQL Simple will execute all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back, and the database will be in the same state before the command (no changes are made). 
 
 
 Of course, you can also use ``AddMappingWithData()`` with several commands. But please note that each command requires their own mapping. 
@@ -254,6 +254,54 @@ $sqls.AddCommand($insertCommand)
 $sqls.Execute()
 ```
 
-This command will first delete and record with a IntValue of 2 and then 
+This command will first delete any record with a IntValue of 2 and then add a new record. You can add as many command as you require but note that the size of the transaction log of the database limits the number of changes. 
+
+When chaining several commands, you can use the ``@@OBJECT_NAME@@`` replacement value and the ``Objectname`` property to write the object name only once. The below code makes use of this and is, beside from this change, the exact same as the code above. 
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname="dbo.TestTable"
+
+$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM @@OBJECT_NAME@@ WHERE IntValue = @IntValue")
+$deleteCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
+$sqls.AddCommand($deleteCommand)
+
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO @@OBJECT_NAME@@(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand.AddMappingWithData("Name", "Chain Test 2", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
+```
+
+
+:exclamation: **@@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them. **
+
+
+Because deleting all records, then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for this simple tasks. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname="dbo.TestTable"
+
+$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)
+$deleteCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
+$sqls.AddCommand($deleteCommand)
+
+$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+$insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decimal)
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
+```
+
+Notes:
+* All templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an ID column or it isn't the primary key, the templates are of no use for you.
+* Beside that, the insert template should work for most cases
+* Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mapping are used, the command will fail
+
 
 
