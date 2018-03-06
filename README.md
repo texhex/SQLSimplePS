@@ -304,8 +304,7 @@ $sqls.AddCommand($insertCommand)
 $sqls.Execute()
 ```
 
-Notes:
-* All templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an column of this name or it isn't the primary key, the templates are of no use for you.
+* The insert and update  templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an column of this name or it isn't the primary key, the templates are of no use for you.
 * Beside that, the insert template should work for most cases
 * Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mappings are used, the command will fail
 
