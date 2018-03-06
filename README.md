@@ -1,5 +1,6 @@
 # SQLSimplePS
-SQL Simple is an attempt to make handling SQL Server data with PowerShell easier and more secure. It features:
+
+SQL Simple aims to make handling SQL Server data with PowerShell easier and more secure. It features:
 
 * Static functions that can be used as "single line commands" to run against SQL Server (``Execute()`` returns single values, while ``Query()`` returns hash tables)
 * Chaining several commands that will execute in a single transaction
