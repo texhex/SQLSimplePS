@@ -1,5 +1,5 @@
 # SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.3.1
+# Version 1.4.3
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -9,36 +9,8 @@
 # using module .\SQLSimplePS.psm1
 #
 #
-# SQL Simple is an attempt to make handling SQL with PowerShell easier and more secure. If you already use parameterized queries 
-# and have working transaction handling, this class is not for you.
-#
-# It works by creating a SQLSimple object that contains the object name it applies to (e.g. a table “dbo.TestTable”) and 
-# the connection string to reach the database.
-#
-# You then define SQLSimpleCommands that hold the SQL text to run against the database. The property SQLTemplate has the SQL statement
-# you want to execute. You can set this property to something like “INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);”. 
-# These special @@ values are replacement values that can also be used but are not required. In fact, for some cases it is not 
-# possible to use the @@COLUMN@@ or @@PARAMETER@@ replacement since the replacement would generate invalid SQL.
-#
-# You then add one or more SQLSimpleColumns to the command that contains the name of the column this map applies to, the property 
-# name where the data from for this column comes from and the SQL Server column data type (NVarChar, VarChar, int, bit etc.)
-#
-# For example, you might want to add the running processes to a SQL table, but only want to add the number of handles and the 
-# process name to this table. You define the table as EXEName (NVarChar) and NumHandles (int).
-#
-# In this case, you would add two SQLSimpleColumns. The first would be “EXEName” (SQL column name), “ProcessName” (the property name
-# of the object Get-Process returns) and “NVarChar” (data type). The second would be “NumHandles” (SQL Server), “Handles” (property)
-# and “Int”.
-#
-# Your SQLSimpleCommand would have the SQLTemplate of “INSERT INTO @@OBJECT_NAME@@(EXEName, NumHandles) VALUES(@EXEName, @NumHandles);”
-# The classes resuse the column name (EXEName, NumHandler) as parameter names (@EXEName, @NumHandles). During runtime, the data from
-# the source property will be set as parameter. 
-#
-# During runtime, you would do one foreach() loop through the return from Get-Process, add each entry to the Data array list of 
-# the SQLSimpleCommand. When done, call Execute() on the SQLSimple object. 
-#
 # ## NOTICE ##
-# SQLSimple uses Snapshot Isolation as isolation level (as it prevents a lot of problems that other isolation levels have). 
+# SQLSimple uses Snapshot Isolation as default isolation level (as it prevents a lot of problems that other isolation levels have). 
 # Execute this SQL command in the target database to allow this isolation level:
 #
 # ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON 
@@ -67,7 +39,6 @@ GO
 #>
 #
 #
-#
 # ### ONE LINERS ###
 <#
 
@@ -83,88 +54,81 @@ GO
 #Specify transaction isolation level 
 [SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable))
 
-
 #>
 #
-#
-# ### INSERT SOME DATA WITH DELETE FIRST ####
+# ### INSERT DATA WITH DELETE FIRST ####
 <#
 
-$sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
+$sqls = [SQLSimple]::new($connectionString)
 
-#Create the delete command and add it (no mapping nor data, just the command as we delete the contents of the entire table)
-$sqls.AddCommand( [SQLSimpleCommand]::new("DELETE FROM @@OBJECT_NAME@@;") )
+$sqls.AddCommand("DELETE FROM dbo.TestTable")
 
-#Create the insert command
-$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
-#This is the same as writing
-#$command = [SQLSimpleCommand]::new("INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);")
-#Note: To get the inserted ID from Execute() use this template:
-#$command.SQLTemplate="INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);"
+$sqls.AddCommand("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Chain Test 1', 11, 11.11);")
 
-#Add directly some values 
-#First parameter is the SQL Server column name/parameter, second is the name of the property to get the data from, final parameter is the SQL Server data type
-$insertCommand.AddMappingWithData("Name", "From SQLSimplePS_First", [Data.SqlDbType]::NVarChar)
-$insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
-$insertCommand.AddMappingWithData("NumericValue", 33.44, [Data.SqlDbType]::Decimal)
-
-#Add the insert command
-$sqls.AddCommand($insertCommand)
-
-#Execute it
 $sqls.Execute()
 
 #>
 #
+# ### INSERT DATA WITH DELETE FIRST AND USING SQLCommandTemplates ####
+<#
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname="dbo.TestTable"
+
+$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)
+# [SQLCommandTemplate]::Delete translates to:
+# DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;
+
+$deleteCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
+$sqls.AddCommand($deleteCommand)
+
+$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+# [SQLCommandTemplate]::Insert translates to:
+# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);
+
+$insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decimal)
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
+
+#>
 #
 # ### INSERT SEVERAL ROWS USING DATA PROPERTY ####
 <#
 
 $sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
 
-#Create the delete command and add it (no mapping nor data, just the command as we delete the contents of the entire table)
-$sqls.AddCommand( [SQLSimpleCommand]::new("DELETE FROM @@OBJECT_NAME@@;") )
-
-#We want to get the inserted ID, so we use Output Inserted.ID
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);")
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 #Add the mapping
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "NameProp", [Data.SqlDbType]::NVarChar) ) 
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("IntValue", "MyCount", [Data.SqlDbType]::int) ) 
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("NumericValue", "NumericVal", [Data.SqlDbType]::Decimal) ) 
+$insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
+$insertCommand.AddMapping("IntValue", "MyCount", [Data.SqlDbType]::int) 
+$insertCommand.AddMapping("NumericValue", "NumericVal", [Data.SqlDbType]::Decimal) 
 
-#Add the data 
-$myData = [PSCustomObject]@{
-    NameProp   = "From SQLSimplePS_First";
-    MyCount = 1;
-    NumericVal = 12.2;
-}
-$insertCommand.AddData($myData)
-
-$myData2 = [PSCustomObject]@{
-    NameProp   = "From SQLSimplePS_Second";
-    MyCount = 2;
-    NumericVal = 42;
-}
+#Add the data #1
+$myData1 = @{ NameProp = "Chain Test 4"; MyCount = 4; NumericVal = 44.44; }
+$insertCommand.AddData($myData1)
+#Add the data #2
+$myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
 $insertCommand.AddData($myData2)
 
 #Add the insert command that includes the mapping and the data
 $sqls.AddCommand($insertCommand)
 
-#Execute this (will return an array with IDs)
 $sqls.Execute()
 
 #>
-#
 #
 # ### QUERY (SELECT) EXAMPLE ###
 <#
 
 $sqlSelect = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
+
 $result=$sqlSelect.Query("SELECT * FROM @@OBJECT_NAME@@;")
 
 #>
-#
 #
 # ## SELECT EXAMPLE WITH PARAMETERS ###
 <#
@@ -185,7 +149,7 @@ $sqlSelect.Query()
 #
 #
 
-#This script requires PowerShell 5.1 because we are using classes
+#This script requires PowerShell 5 because we are using classes
 #requires -version 5
 
 #Guard against common code errors
@@ -274,6 +238,21 @@ class SQLSimple
         [void] $this.Commands.Add([SQLSimpleCommand]::new($SQLTemplate))
     }
 
+    #Creates a command, adds it to the list and returns it
+    #I have no idea what the best naming for this function would be:
+    #? [SQLSimpleCommand] AddCommandEx([string] $SQLTemplate)
+    #? [SQLSimpleCommand] AppendCommand([string] $SQLTemplate)
+    #? [SQLSimpleCommand] CreateCommand([string] $SQLTemplate)
+    #? [SQLSimpleCommand] AttachCommand([string] $SQLTemplate)
+    #? [SQLSimpleCommand] AddCommandAndReturn([string] $SQLTemplate)
+    #? [SQLSimpleCommand] AddCommand2([string] $SQLTemplate)
+    [SQLSimpleCommand] AddCommandEx([string] $SQLTemplate)
+    {
+        $command=[SQLSimpleCommand]::new($SQLTemplate)
+        [void] $this.Commands.Add($command)
+        return $command
+    }
+
 
     #Validates this SQLSimple is everything is set as planned
     [void] Validate()
@@ -330,7 +309,6 @@ class SQLSimple
         $sql.AddCommand( [SQLSimpleCommand]::new($SQLQuery) )        
         return $sql.Query()
     }
-
     
     [array] Query()
     {
@@ -567,7 +545,7 @@ enum SQLCommandTemplate
     #INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);
     Insert = 2
     
-    #UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@
+    #UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@ OUTPUT Inserted.ID;
     Update = 4
 }
 
@@ -596,7 +574,7 @@ class SQLSimpleCommand
         {
             Delete
             {
-                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID WHERE @@COLUMN@@=@@PARAMETER@@;"
+                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;"
             }
 
             Insert
@@ -625,18 +603,11 @@ class SQLSimpleCommand
         [void] $this.ColumnMap.Add($Column)
     }
 
-    #An array list of the data that should be used when executing this command. 
-    #Each entry must contain an object that holds the data. For example, if you want to insert a row with "NAME" and "AGE", do not add
-    #those two properties directly to this array list, instead create a hash table, add those properties to that hash table and then add
-    #the hash table to this array list so $Data.Count will be 1
-    [System.Collections.ArrayList] $Data
-
-    #It's also possible to directly use $command.Data.Add($myData)
-    [void] AddData($Data)
+    #This helper function will make the source code a little bit easier to read
+    [void] AddMapping([string] $Columnname, [string] $Source, [Data.SqlDbType] $Type)
     {
-        [void] $this.Data.Add($Data)
+        $this.AddMapping( [SQLSimpleColumn]::new($Columnname, $Source, $Type) )
     }
-        
 
     #Quick access function that adds a column mapping and the value for it directly
     #This will only apply to the first entry of Data and will NOT work if the object in Data[0] already exists and is not a hash table
@@ -656,6 +627,17 @@ class SQLSimpleCommand
         $this.Data[0].Add($Columnname, $Data)
     }
 
+    #An array list of the data that should be used when executing this command. 
+    #Each entry must contain an object that holds the data. For example, if you want to insert a row with "NAME" and "AGE", do not add
+    #those two properties directly to this array list, instead create a hash table, add those properties to that hash table and then add
+    #the hash table to this array list so $Data.Count will be 1
+    [System.Collections.ArrayList] $Data
+
+    #It's also possible to directly use $command.Data.Add($myData)
+    [void] AddData($Data)
+    {
+        [void] $this.Data.Add($Data)
+    }
 
     [void] Validate()
     {
@@ -734,7 +716,6 @@ class SQLSimpleCommand
             }
         }
 
-
         $sqlPart = new-object System.Text.StringBuilder
         
         #Check if the SQLTemplate contains @@COLUMN@@ and start the replacement if this is the case
@@ -787,7 +768,14 @@ class SQLSimpleColumn
         $this.Type = [Data.SQLDBType]::NVarChar
     }
 
-    SQLSimpleColumn([string] $Column, [string] $Source, [Data.SqlDbType] $Type )
+    SQLSimpleColumn([string] $Column, [string] $Source)
+    {
+        $this.Column = $Column
+        $this.Source = $Source
+        $this.Type = [Data.SQLDBType]::NVarChar
+    }
+
+    SQLSimpleColumn([string] $Column, [string] $Source, [Data.SqlDbType] $Type)
     {
         $this.Column = $Column
         $this.Source = $Source
@@ -823,89 +811,5 @@ class SQLSimpleColumn
     }
 
 }
-
-
-
-
-#using module .\SQLSimplePS.psm1
-
-#$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
-
-#$connectionString = "Server=TOINV-CORP-1\SQLEXPRESS; Database=SecondaryInventory; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
-
-#[SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) VALUES('Second Test', 9, 45.66)", $connectionString)
-
-#[SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString)
-
-<#
-$procs=get-process | where-object CPU -gt 0 | where-object CPU -lt 10
-
-$sqls = [SQLSimple]::new($connectionString)
-$sqls.Objectname="dbo.TestTable"
-
-$sqls.AddCommand("DELETE FROM dbo.TestTable")
-
-$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
-
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("IntValue", "Handles", [Data.SqlDbType]::int) ) 
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("NumericValue", "CPU", [Data.SqlDbType]::Decimal) ) 
-
-$insertCommand.Data=$procs
-
-$sqls.AddCommand($insertCommand)
-
-$sqls.Execute()
-
-
-[SQLSimple]::Query("SELECT * FROM TestTable where IntValue=382", $connectionString)
-#>
-
-<#
-$sql = [SQLSimple]::new($connectionString)
-
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
-
-$badName = @"
-'); DELETE FROM DBO.USERS; GO --
-"@
-
-$insertCommand.AddMappingWithData("Name", $badName, [Data.SqlDbType]::NVarChar)
-$insertCommand.AddMappingWithData("IntValue", 33, [Data.SqlDbType]::Int)
-$insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
-
-$sql.AddCommand($insertCommand)
-
-$sql.Execute()
-#>
-
-
-<#
-
-
-#Create the delete command and add it (no mapping nor data, just the command as we delete the contents of the entire table)
-$sql.AddCommand( [SQLSimpleCommand]::new("DELETE FROM @@OBJECT_NAME@@;") )
-
-#Create the insert command
-$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
-#This is the same as writing
-#$command = [SQLSimpleCommand]::new("INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);")
-#Note: To get the inserted ID from Execute() use this template:
-#$command.SQLTemplate="INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);"
-
-#Add directly some values 
-#First parameter is the SQL Server column name/parameter, second is the name of the property to get the data from, final parameter is the SQL Server data type
-$insertCommand.AddMappingWithData("Name", "From SQLSimplePS_First", [Data.SqlDbType]::NVarChar)
-$insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
-$insertCommand.AddMappingWithData("NumericValue", 33.44, [Data.SqlDbType]::Decimal)
-
-#Add the insert command
-$sql.AddCommand($insertCommand)
-
-#Execute it
-$sql.Execute()
-#>
-
-
 
 
