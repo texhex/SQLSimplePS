@@ -228,7 +228,7 @@ $selectCommand.AddMappingWithData("IntValue", 12, [Data.SqlDbType]::Int)
 $sqls.Query()
 ```
 
-This query will return three rows: First Test, Second Test and Third Test as their IntValue are below 12).
+This query will return three rows: First Test, Second Test and Third Test as their IntValue are below 12.
 
 
 ## Using several parametrized queries at once
@@ -261,13 +261,31 @@ $insertCommand.AddMappingWithData("Name", "Chain Test 2", [Data.SqlDbType]::NVar
 $insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
-
 $sqls.Execute()
 ```
 
-This command will first delete any record with a IntValue of 2 and then add a new record. You can add as many command as you require but note that the size of the transaction log of the database limits the number of changes. 
+This command will first delete any record with a IntValue of 2 and then add a new record. You can add as many command as you require. 
 
-When chaining several commands, you can use the ``@@OBJECT_NAME@@`` replacement value and the ``Objectname`` property to write the object name only once. The below code makes use of this and is, beside from this change, the exact same as the code above. 
+To add a command to an instance of SQL Simple, you have several possibilities:
+
+* When the command is a simple SQL command, use the ``AddCommand()`` with a string
+  * ``$sqls.AddCommand("DELETE FROM dbo.TestTable")``
+* Use one of the SQLCommandTemplates with ``AddCommand()``
+  * ``$sqls.AddCommand([SQLCommandTemplate]::Delete)``
+* To have the command object returned (e.g. to add mappings), use the ``AddCommandEx()`` function
+  * ``$command = $sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue < @IntValue")``
+* The SQLCommandTemplate parameter is also supported by ``AddCommandEx()`` 
+  * ``$command = $sqls.AddCommandEx([SQLCommandTemplate]::Delete)``
+* Creating it with the ``::new`` operator, then adding the object with ``AddCommand()``. This can be handy in case you need to run the same command against several databases
+  * ``$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable")``
+  * ``$sqls.AddCommand($deleteCommand)``
+* Creating it with the ``::new`` operator and using a SQLCommandTemplate, then adding the object with ``AddCommand()``. 
+  * ``$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)``
+  * ``$sqls.AddCommand($deleteCommand)``
+
+## SQL command templates
+
+When chaining several commands, you can use the ``@@OBJECT_NAME@@`` replacement value and the ``Objectname`` property to write the object name only once. The below code makes use of this and is, beside from this change, the exact same as the last example. 
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -289,25 +307,7 @@ $sqls.Execute()
 
 ---
 
-To add a command to an instance of SQL Simple, you have several possibilities:
-
-* When the command is a simple SQL command, use the ``AddCommand()`` with a string
-  * ``$sqls.AddCommand("DELETE FROM dbo.TestTable")``
-* Use one of the SQLCommandTemplates with ``AddCommand()``
-  * ``$sqls.AddCommand([SQLCommandTemplate]::Delete)``
-* To have the command object returned (e.g. to add mappings), use the ``AddCommandEx()`` function
-  * ``$command = $sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue < @IntValue")``
-* The SQLCommandTemplate parameter is also supported by ``AddCommandEx()`` 
-  * ``$command = $sqls.AddCommandEx([SQLCommandTemplate]::Delete)``
-* Creating it with the ``::new`` operator, then adding the object with ``AddCommand()``. This can be handy in case you need to run the same command against several databases
-  * ``$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable")``
-  * ``$sqls.AddCommand($deleteCommand)``
-* Creating it with the ``::new`` operator and using a SQLCommandTemplate, then adding the object with ``AddCommand()``. 
-  * ``$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)``
-  * ``$sqls.AddCommand($deleteCommand)``
-
-
-Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@``, ``@@PARAMETER@@`` and  ``@@COLUMN_EQUALS_PARAMETER@@`` replacement values. When using these templates (using the SQLCommandTemplate enumeration), the code looks like this:
+Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these tasks and that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@``, ``@@PARAMETER@@`` and  ``@@COLUMN_EQUALS_PARAMETER@@`` replacement values. When using these templates, using the SQLCommandTemplate enumeration, the code looks like this:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -328,10 +328,28 @@ $insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decim
 $sqls.Execute()
 ```
 
-* The insert and update templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an column of this name or it isn't the primary key, the templates are of no use for you.
-* Beside that, the insert template should work for most cases
-* Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mappings are used, the command will fail
+SQLCommandTemplate offers the following templates:
 
+* Delete
+  * ``DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN_EQUALS_PARAMETER@@;``
+
+* DeleteReturnID
+  * ``DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID WHERE @@COLUMN_EQUALS_PARAMETER@@;``
+
+* DeleteAll
+  * ``DELETE FROM @@OBJECT_NAME@@;``
+
+* DeleteAllReturnID
+  * ``DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID;``
+
+* Insert
+  * ``INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);``
+
+* InsertReturnID
+  * ``INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);``
+            
+
+In case you miss an UPDATE statement, there is no template for this as a typical UPDATE statement can contain the same column for the new value as well as being used in the WHERE clause (``UPDATE dbo.TestTable SET Name='New Name' where Name='First Test'``). I have not found a way to implement this correctly. 
 
 ## Using the DATA property
 
@@ -475,8 +493,10 @@ Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
     382      22    18868      31940       1,00   9572   1 ApplicationFrameHost
 ```
 
-Thanks for reading!
+## Contributions
+
+Any constructive contribution is very welcome! If you encounter a bug or have an idea for an improvment, please open a [new issue](https://github.com/texhex/SQLSimplePS/issues/new).
 
 
 
-ENDE
+**ENDE**
