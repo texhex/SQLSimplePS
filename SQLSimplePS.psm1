@@ -1,5 +1,5 @@
 # SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.4.3
+# Version 1.4.4
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -75,21 +75,13 @@ $sqls.Execute()
 $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname="dbo.TestTable"
 
-$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)
-# [SQLCommandTemplate]::Delete translates to:
-# DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;
+$deleteCommand = $sqls.AddCommandEx("DELETE FROM @@OBJECT_NAME@@ WHERE IntValue = @IntValue")
+$deleteCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
 
-$deleteCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
-$sqls.AddCommand($deleteCommand)
-
-$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
-# [SQLCommandTemplate]::Insert translates to:
-# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);
-
-$insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
-$insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
-$insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decimal)
-$sqls.AddCommand($insertCommand)
+$insertCommand = $sqls.AddCommandEx("INSERT INTO @@OBJECT_NAME@@(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand.AddMappingWithData("Name", "Chain Test 2", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
+$insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
 $sqls.Execute()
 
@@ -100,7 +92,7 @@ $sqls.Execute()
 
 $sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = $sqls.AddCommandEx("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 #Add the mapping
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
@@ -113,9 +105,6 @@ $insertCommand.AddData($myData1)
 #Add the data #2
 $myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
 $insertCommand.AddData($myData2)
-
-#Add the insert command that includes the mapping and the data
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 
@@ -133,17 +122,13 @@ $result=$sqlSelect.Query("SELECT * FROM @@OBJECT_NAME@@;")
 # ## SELECT EXAMPLE WITH PARAMETERS ###
 <#
 
-$sqlSelect = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
+$sqls = [SQLSimple]::new($connectionString)
 
-#Define the query with a parameter
-$selectCommand=[SQLSimpleCommand]::new("SELECT * FROM @@OBJECT_NAME@@ WHERE NumericValue=@NumericValue")
+$selectCommand = $sqls.AddCommandEx("SELECT * from dbo.TestTable WHERE IntValue < @IntValue;")
 
-#We add the mapping and data directly so the parameter @NumericValue is now 12.20
-$selectCommand.AddMappingWithData("NumericValue", 12.20, [Data.SqlDbType]::Decimal)
+$selectCommand.AddMappingWithData("IntValue", 12, [Data.SqlDbType]::Int)
 
-$sqlSelect.AddCommand($selectCommand)
-
-$sqlSelect.Query()
+$sqls.Query()
 
 #>
 #
@@ -212,6 +197,8 @@ class SQLSimple
     hidden static [string] $ObjectNameToken = "@@OBJECT_NAME@@"
     hidden static [string] $ColumnToken = "@@COLUMN@@"
     hidden static [string] $ParameterToken = "@@PARAMETER@@"
+    hidden static [string] $ColumnEqualsParameterToken = "@@COLUMN_EQUALS_PARAMETER@@"
+
 
     #The SQL object this map applies to - in most cases, this will be a table: "[dbo].[MyTable]"
     [string] $Objectname
@@ -226,16 +213,22 @@ class SQLSimple
     #An array list of SQLSimpleCommand
     [System.Collections.ArrayList] $Commands
     
-    #Just a helper, it's also possible to directly use $sql.Commands.Add($myCommand)
+    #Add a SQLCommand
     [void] AddCommand([SQLSimpleCommand] $Command)
     {
         [void] $this.Commands.Add($Command)
     }
 
-    #Helper function that accepts a string
+    #Add a SQLSimpleCommand by using a string
     [void] AddCommand([string] $SQLTemplate)
     {
         [void] $this.Commands.Add([SQLSimpleCommand]::new($SQLTemplate))
+    }
+
+    #Add a SQLSimpleCommand by using a SQLCommandTemplate
+    [void] AddCommand([SQLCommandTemplate] $Template)
+    {
+        [void] $this.Commands.Add([SQLSimpleCommand]::new($Template))
     }
 
     #Creates a command, adds it to the list and returns it
@@ -248,11 +241,17 @@ class SQLSimple
     #? [SQLSimpleCommand] AddCommand2([string] $SQLTemplate)
     [SQLSimpleCommand] AddCommandEx([string] $SQLTemplate)
     {
-        $command=[SQLSimpleCommand]::new($SQLTemplate)
+        $command = [SQLSimpleCommand]::new($SQLTemplate)
         [void] $this.Commands.Add($command)
         return $command
     }
 
+    [SQLSimpleCommand] AddCommandEx([SQLCommandTemplate] $Template)
+    {
+        $command = [SQLSimpleCommand]::new($Template)
+        [void] $this.Commands.Add($command)
+        return $command
+    }
 
     #Validates this SQLSimple is everything is set as planned
     [void] Validate()
@@ -494,7 +493,14 @@ class SQLSimple
     {
         if ( $FullResults )
         {
-            $reader = $Command.ExecuteReader()
+            try 
+            {
+                $reader = $Command.ExecuteReader()
+            }
+            catch
+            {
+                throw "Query failed: $($_.Exception.Message) (SQL: $($Command.CommandText))"
+            }
 
             try
             {
@@ -523,7 +529,15 @@ class SQLSimple
         else
         {
             #No Full results, use ExecuteScalar()
-            $val = $Command.ExecuteScalar()
+            try
+            {
+                $val = $Command.ExecuteScalar()    
+            }
+            catch
+            {
+                throw "Execute failed: $($_.Exception.Message) (SQL: $($Command.CommandText))"
+            }
+            
             if ( $val -ne $null)
             {
                 $returnList.Add($val)      
@@ -539,14 +553,17 @@ class SQLSimple
 
 enum SQLCommandTemplate
 {   
-    #DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;
     Delete = 1
+    DeleteReturnID = 2
+    DeleteAll = 3
+    DeleteAllReturnID = 4
     
-    #INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);
-    Insert = 2
+    Insert = 31
+    InsertReturnID = 32
     
-    #UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@ OUTPUT Inserted.ID;
-    Update = 4
+    #I think we better leave them out
+    #Update = 61
+    #UpdateReturnID = 62
 }
 
 #A single SQL command
@@ -574,19 +591,46 @@ class SQLSimpleCommand
         {
             Delete
             {
-                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;"
+                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN_EQUALS_PARAMETER@@;"
+            }
+
+            DeleteReturnID
+            {
+                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID WHERE @@COLUMN_EQUALS_PARAMETER@@;"
+            }
+
+            DeleteAll
+            {
+                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@;"
+            }
+
+            DeleteAllReturnID
+            {
+                $this.SQLTemplate = "DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID;"
             }
 
             Insert
             {
+                $this.SQLTemplate = "INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);"
+            }
+
+            InsertReturnID
+            {
                 $this.SQLTemplate = "INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);"
             }
-
+            
+            <#
             Update
             {
-                $this.SQLTemplate = "UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@ OUTPUT Inserted.ID;"
-
+                $this.SQLTemplate = "UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@;"
             }
+
+            UpdateReturnID
+            {
+                $this.SQLTemplate = "UPDATE @@OBJECT_NAME@@ SET @@COLUMN@@=@@PARAMETER@@ OUTPUT Inserted.ID;"
+            }
+            #>
+
         }
     }
 
@@ -699,7 +743,9 @@ class SQLSimpleCommand
 
     hidden [string] GenerateSQLText([string] $Objectname)
     {
-        $sb = new-object System.Text.StringBuilder
+        $sqlPart = new-object System.Text.StringBuilder
+
+        $sb = new-object System.Text.StringBuilder        
 
         $sb.Append($this.SQLTemplate)
 
@@ -715,33 +761,50 @@ class SQLSimpleCommand
                 throw "Found replacement token $([SQLSimple]::ObjectNameToken) but Objectname is empty"
             }
         }
-
-        $sqlPart = new-object System.Text.StringBuilder
         
         #Check if the SQLTemplate contains @@COLUMN@@ and start the replacement if this is the case
         if ($this.SQLTemplate.Contains([SQLSimple]::ColumnToken))
         {
+            $sqlPart.Clear();
+
             foreach ($sqlColumn in $this.ColumnMap)
             {
                 $sqlPart.Append($sqlColumn.Column)
                 $sqlPart.Append(",")
             }
+           
             $sb.Replace([SQLSimple]::ColumnToken, $sqlPart.ToString().TrimEnd(","))
         }
-
-        #Reuse it to build the parameter names (@Column), which will later on take the data values
-        $sqlPart.Clear();
-
+        
         #Check if the SQLTemplate contains @@PARAMETER@@ and start the replacement if this is the case
         if ($this.SQLTemplate.Contains([SQLSimple]::ParameterToken))
         {
+            $sqlPart.Clear();
+
             foreach ($sqlColumn in $this.ColumnMap)
             {
                 $sqlPart.Append("@")
                 $sqlPart.Append($sqlColumn.Column)
                 $sqlPart.Append(",")
             }
+            
             $sb.Replace([SQLSimple]::ParameterToken, $sqlPart.ToString().TrimEnd(","));
+        }
+
+        #Check if the SQLTemplate contains @@COLUMN_EQUALS_PARAMETER@@ and start the replacement if this is the case
+        if ($this.SQLTemplate.Contains([SQLSimple]::ColumnEqualsParameterToken))
+        {
+            $sqlPart.Clear();
+
+            foreach ($sqlColumn in $this.ColumnMap)
+            {
+                $sqlPart.Append($sqlColumn.Column)
+                $sqlPart.Append(" = @")
+                $sqlPart.Append($sqlColumn.Column)
+                $sqlPart.Append(" AND ")
+            }
+            
+            $sb.Replace([SQLSimple]::ColumnEqualsParameterToken, $sqlPart.ToString().TrimEnd(" AND "));
         }
 
         #Ensure the command ends with a ;
@@ -751,6 +814,7 @@ class SQLSimpleCommand
             $finalSQL += ";"
         }
 
+        write-host "SQL: $finalSQL"
         return $finalSQL;
     }
        
