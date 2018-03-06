@@ -137,7 +137,7 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 
 ## Using parametrized queries
 
-The static methods work for  simple tasks, but for more complex tasks you should create an instance of SQLSimple and add instance(s) of SQLSimpleCommand to it. To add a third row to *TestTable*, use the following code:
+The static methods work for simple tasks, but for more complex tasks you should create an instance of SQLSimple and add instance(s) of SQLSimpleCommand to it. To add a third row to *TestTable*, use the following code:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -146,9 +146,7 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 
 $sqls = [SQLSimple]::new($connectionString)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Third Test', 11, 78.99);")
-
-$sqls.AddCommand($insertCommand)
+$sqls.AddCommand("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Third Test', 11, 78.99);")
 
 $sqls.Execute()
 ```
@@ -177,13 +175,11 @@ The entire code then looks like this:
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = $sqls.AddCommandEx("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 $insertCommand.AddMappingWithData("Name", "Fourth Test", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
-
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
@@ -202,7 +198,7 @@ When using string replacement, we would be in big trouble, but with parameters w
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = $sqls.AddCommandEx("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 $badName=@"
 '); DELETE FROM DBO.USERS; GO --
@@ -211,8 +207,6 @@ $badName=@"
 $insertCommand.AddMappingWithData("Name", $badName, [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 33, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
-
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
@@ -225,11 +219,9 @@ It is also possible to query the database using parameters:
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
 
-$selectCommand = [SQLSimpleCommand]::new("SELECT * from dbo.TestTable WHERE IntValue < @IntValue;")
+$selectCommand = $sqls.AddCommandEx("SELECT * from dbo.TestTable WHERE IntValue < @IntValue;")
 
 $selectCommand.AddMappingWithData("IntValue", 12, [Data.SqlDbType]::Int)
-
-$sqls.AddCommand($selectCommand)
 
 $sqls.Query()
 ```
@@ -259,15 +251,14 @@ Of course, you can also use ``AddMappingWithData()`` with several commands, but 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
 
-$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable WHERE IntValue = @IntValue")
+$deleteCommand = $sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue = @IntValue")
 $deleteCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
-$sqls.AddCommand($deleteCommand)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = $sqls.AddCommandEx("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 $insertCommand.AddMappingWithData("Name", "Chain Test 2", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
-$sqls.AddCommand($insertCommand)
+
 
 $sqls.Execute()
 ```
@@ -280,15 +271,13 @@ When chaining several commands, you can use the ``@@OBJECT_NAME@@`` replacement 
 $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname="dbo.TestTable"
 
-$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM @@OBJECT_NAME@@ WHERE IntValue = @IntValue")
+$deleteCommand = $sqls.AddCommandEx("DELETE FROM @@OBJECT_NAME@@ WHERE IntValue = @IntValue")
 $deleteCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
-$sqls.AddCommand($deleteCommand)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO @@OBJECT_NAME@@(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = $sqls.AddCommandEx("INSERT INTO @@OBJECT_NAME@@(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 $insertCommand.AddMappingWithData("Name", "Chain Test 2", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
@@ -297,7 +286,7 @@ $sqls.Execute()
 :exclamation: Note that @@OBJECT_NAME@@ and other @@ replacement values **use string replacement and are therefore open to string injection**. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.
 
 
-To add a command to an instance of SQL Simple, you have several ways to do so:
+To add a command to an instance of SQL Simple, you have several possibilities:
 
 * When the command is a simple SQL command, use the ``AddCommand()`` with a string
   * ``$sqls.AddCommand("DELETE FROM dbo.TestTable")``
@@ -305,18 +294,17 @@ To add a command to an instance of SQL Simple, you have several ways to do so:
   * ``$sqls.AddCommand([SQLCommandTemplate]::Delete)``
 * To have the command object returned (e.g. to add mappings), use the ``AddCommandEx()`` function
   * ``$command=$sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue < @IntValue")``
-* SQL Command Templates are also supported by ``AddCommandEx()`` 
+* SQL templates are also supported by ``AddCommandEx()`` 
   * ``$command=$sqls.AddCommandEx([SQLCommandTemplate]::Delete)``
-* Creating it with the ``::new`` operator, then adding the object with ``AddCommand()`` (this can be handy in case you need to run the same command against several databases)
-  * ``$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable)``
+* Creating it with the ``::new`` operator, then adding the object with ``AddCommand()``. This can be handy in case you need to run the same command against several databases
+  * ``$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable")``
+  * ``$sqls.AddCommand($deleteCommand)``
+* Creating it with the ``::new`` operator and using a SQL template, then adding the object with ``AddCommand()``. 
+  * ``$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)``
   * ``$sqls.AddCommand($deleteCommand)``
 
 
-  [SQLCommandTemplate]::Delete
-
-
-
-Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for these simple tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@`` and ``@@PARAMETER@@`` replacement values. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
+Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these simple tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@`` and ``@@PARAMETER@@`` replacement values. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
