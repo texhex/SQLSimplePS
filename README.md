@@ -279,17 +279,23 @@ $sqls.Execute()
 :exclamation: **Note that @@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.**
 
 
-Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for these simple tasks. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
+Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for these simple tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@`` and ``@@PARAMETER@@`` replacement values. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname="dbo.TestTable"
 
 $deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)
+# [SQLCommandTemplate]::Delete translates to:
+# DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;
+
 $deleteCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
 $sqls.AddCommand($deleteCommand)
 
 $insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+# [SQLCommandTemplate]::Insert translates to:
+# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);
+
 $insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decimal)
