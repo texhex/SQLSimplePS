@@ -220,7 +220,7 @@ This query will return three rows: First Test, Second Test and Third Test as the
 
 ## Using several parametrized queries at once
 
-SQL Simple supports adding more than command and execute them in one go. A typical example is to clear a table before adding new data. 
+SQL Simple supports adding more than one command and execute all in one go. A typical example is to clear a table before adding new data. 
 
 
 ```powershell
@@ -233,10 +233,10 @@ $sqls.AddCommand("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT
 $sqls.Execute()
 ```
 
-When executed, *TestTable* will only contain one row. SQL Simple will execute all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back, and the database will be in the same state before the command (no changes are made). 
+When executed, *TestTable* will only contain one row. SQL Simple executes all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back, and the database will be in the same state before the command (no changes are made). 
 
 
-Of course, you can also use ``AddMappingWithData()`` with several commands. But please note that each command requires their own mapping. 
+Of course, you can also use ``AddMappingWithData()`` with several commands, but note that each command requires their own mapping. 
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -279,7 +279,7 @@ $sqls.Execute()
 :exclamation: **Note that @@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.**
 
 
-Because deleting all records, then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for this simple tasks. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
+Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for these simple tasks. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -306,11 +306,11 @@ Notes:
 
 ## Using the DATA property
 
-Until now, all command only added a single row but in most cases you want to deal with as many rows you require. 
+Until now, all command only added a single row but in most cases you want to deal with more rows.
 
 SQL Simple supports this by using the ``Data`` property and mapping the properties of these external objects to the SQL Server object. 
 
-For this example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more than 0 CPU and less than 10:
+For this example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
@@ -335,10 +335,10 @@ dbo.TestTable.IntValue = Get-Process Handles
 dbo.TestTable.NumericValue = Get-Process CPU 
 ```
 
-The code to create this mapping is  creating a SQLSimpleColumn which requires three parameters:
+The code to create this mapping is creating a SQLSimpleColumn which requires three parameters:
 
 * **Column Name** (*Name*) - The name of the SQL Server column the data should go
-* **Property Name** (*ProcessName*) - The name of the property from the data to get the value
+* **Property Name** (*ProcessName*) - The name of the property from data to get the value
 * **Data Type** (*NVarChar*) - The data type of the column in SQL Server
 
 For the first column, the SQLSimpleColumn would be declared as follows:
@@ -352,7 +352,7 @@ To declare it in a single line and add it, use this syntax:
 $insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
 ```
 
-This mapping means, that SQL Simple will query each object you added to the ``Data`` property for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
+This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
 
 The entire code looks like this:
 
