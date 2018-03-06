@@ -814,7 +814,6 @@ class SQLSimpleCommand
             $finalSQL += ";"
         }
 
-        write-host "SQL: $finalSQL"
         return $finalSQL;
     }
        
