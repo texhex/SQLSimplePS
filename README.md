@@ -1,6 +1,24 @@
 # SQLSimplePS
 SQL Simple is an attempt to make handling SQL with PowerShell easier and more secure. If you already use parameterized queries and have working transaction handling, this class is not for you. Everybody, please read on.
 
+ SQL Simple is an attempt to make handling SQL with PowerShell easier and more secure. If you already use parameterized queries and have working transaction handling, this class is not for you.
+
+It works by creating a SQLSimple object that contains the object name it applies to (e.g. a table “dbo.TestTable”) and the connection string to reach the database.
+
+You then define SQLSimpleCommands that hold the SQL text to run against the database. The property SQLTemplate has the SQL statement you want to execute. You can set this property to something like “INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);”. 
+
+These special @@ values are replacement values that can also be used but are not required. In fact, for some cases it is not possible to use the @@COLUMN@@ or @@PARAMETER@@ replacement since the replacement would generate invalid SQL.
+
+You then add one or more SQLSimpleColumns to the command that contains the name of the column this map applies to, the property name where the data from for this column comes from and the SQL Server column data type (NVarChar, VarChar, int, bit etc.)
+
+For example, you might want to add the running processes to a SQL table, but only want to add the number of handles and the process name to this table. You define the table as EXEName (NVarChar) and NumHandles (int).
+
+In this case, you would add two SQLSimpleColumns. The first would be “EXEName” (SQL column name), “ProcessName” (the property name of the object Get-Process returns) and “NVarChar” (data type). The second would be “NumHandles” (SQL Server), “Handles” (property) and “Int”.
+
+Your SQLSimpleCommand would have the SQLTemplate of “INSERT INTO @@OBJECT_NAME@@(EXEName, NumHandles) VALUES(@EXEName, @NumHandles);” The classes resuse the column name (EXEName, NumHandler) as parameter names (@EXEName, @NumHandles). During runtime, the data from the source property will be set as parameter. 
+
+During runtime, you would do one foreach() loop through the return from Get-Process, add each entry to the Data array list of the SQLSimpleCommand. When done, call Execute() on the SQLSimple object. 
+
 
 ## Usage
 
@@ -106,15 +124,15 @@ When using an instance of SQL Simple, you can define the isolation level like th
 using module .\SQLSimplePS.psm1
 
 $sqls = [SQLSimple]::new($connectionString)
+
 $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 
 ...
 ```
 
-
 ## Do not use string replacement 
 
-:exclamation: **Please do not stop here and think about using these functions and some string replacement to get your task done. String replacement and SQL is a horrifying bad idea - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement. Please read on.**
+:exclamation: Please do not think about using these functions and some string replacement to get your task done. String replacement and SQL is a **horrifying bad idea** - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement.
 
 
 ## Using parametrized queries
@@ -151,6 +169,7 @@ $insertCommand.AddMappingWithData("Name", "Fourth Test", [Data.SqlDbType]::NVarC
 $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
 ```
+
 The function first expects takes the name of the column where the data goes (in this example, “Name” is the name of the column in TestTable), then the data which should be stored in this column (“Fourth Test”) and the last parameter is the data type the column has: “Name” is defined as “NVarChar”. 
 
 The entire code then looks like this:
@@ -235,7 +254,6 @@ $sqls.Execute()
 
 When executed, *TestTable* will only contain one row. SQL Simple executes all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back, and the database will be in the same state before the command (no changes are made). 
 
-
 Of course, you can also use ``AddMappingWithData()`` with several commands, but note that each command requires their own mapping. 
 
 ```powershell
@@ -276,7 +294,26 @@ $sqls.Execute()
 ```
 
 
-:exclamation: **Note that @@OBJECT_NAME@@ and other @@ replacement values use string replacement and are therefore open to string injection. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.**
+:exclamation: Note that @@OBJECT_NAME@@ and other @@ replacement values **use string replacement and are therefore open to string injection**. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.
+
+
+To add a command to an instance of SQL Simple, you have several ways to do so:
+
+* When the command is a simple SQL command, use the ``AddCommand()`` with a string
+  * ``$sqls.AddCommand("DELETE FROM dbo.TestTable")``
+* Use one of the SQL Command Templates with ``AddCommand()``
+  * ``$sqls.AddCommand([SQLCommandTemplate]::Delete)``
+* To have the command object returned (e.g. to add mappings), use the ``AddCommandEx()`` function
+  * ``$command=$sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue < @IntValue")``
+* SQL Command Templates are also supported by ``AddCommandEx()`` 
+  * ``$command=$sqls.AddCommandEx([SQLCommandTemplate]::Delete)``
+* Creating it with the ``::new`` operator, then adding the object with ``AddCommand()`` (this can be handy in case you need to run the same command against several databases)
+  * ``$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable)``
+  * ``$sqls.AddCommand($deleteCommand)``
+
+
+  [SQLCommandTemplate]::Delete
+
 
 
 Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL Templates that works for these simple tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@`` and ``@@PARAMETER@@`` replacement values. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
@@ -294,7 +331,7 @@ $sqls.AddCommand($deleteCommand)
 
 $insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
 # [SQLCommandTemplate]::Insert translates to:
-# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);
+# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);
 
 $insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
@@ -457,5 +494,7 @@ Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
 ```
 
 Thanks for reading!
+
+
 
 ENDE
