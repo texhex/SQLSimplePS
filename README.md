@@ -1,28 +1,18 @@
 # SQLSimplePS
-SQL Simple is an attempt to make handling SQL with PowerShell easier and more secure. If you already use parameterized queries and have working transaction handling, this class is not for you. Everybody, please read on.
+SQL Simple is an attempt to make handling SQL Server data with PowerShell easier and more secure. It features:
 
- SQL Simple is an attempt to make handling SQL with PowerShell easier and more secure. If you already use parameterized queries and have working transaction handling, this class is not for you.
-
-It works by creating a SQLSimple object that contains the object name it applies to (e.g. a table “dbo.TestTable”) and the connection string to reach the database.
-
-You then define SQLSimpleCommands that hold the SQL text to run against the database. The property SQLTemplate has the SQL statement you want to execute. You can set this property to something like “INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);”. 
-
-These special @@ values are replacement values that can also be used but are not required. In fact, for some cases it is not possible to use the @@COLUMN@@ or @@PARAMETER@@ replacement since the replacement would generate invalid SQL.
-
-You then add one or more SQLSimpleColumns to the command that contains the name of the column this map applies to, the property name where the data from for this column comes from and the SQL Server column data type (NVarChar, VarChar, int, bit etc.)
-
-For example, you might want to add the running processes to a SQL table, but only want to add the number of handles and the process name to this table. You define the table as EXEName (NVarChar) and NumHandles (int).
-
-In this case, you would add two SQLSimpleColumns. The first would be “EXEName” (SQL column name), “ProcessName” (the property name of the object Get-Process returns) and “NVarChar” (data type). The second would be “NumHandles” (SQL Server), “Handles” (property) and “Int”.
-
-Your SQLSimpleCommand would have the SQLTemplate of “INSERT INTO @@OBJECT_NAME@@(EXEName, NumHandles) VALUES(@EXEName, @NumHandles);” The classes resuse the column name (EXEName, NumHandler) as parameter names (@EXEName, @NumHandles). During runtime, the data from the source property will be set as parameter. 
-
-During runtime, you would do one foreach() loop through the return from Get-Process, add each entry to the Data array list of the SQLSimpleCommand. When done, call Execute() on the SQLSimple object. 
+* Static functions that can be used as "single line commands" to run against SQL Server (``Execute()`` returns single values, while ``Query()`` returns hash tables)
+* Chaining several commands that will execute in a single transaction
+* It defaults to SNAPSHOT ISOLATION but any other isolation level can also be used
+* Parametrized queries are fully supported and adding a parameter and it's value is done in a single line 
+* Several SQL templates are available so for simple tasks, you do not need to write any SQL
+* It can map the properties of an external source object to parameters which allows to use the source objects directly instead of copying them as parameter values first
+* This also applies to an array/list/collection of external source objects
 
 
 ## Usage
 
-As it uses classes, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is, then add the following command as the first command in your script:
+As SQLSimple is a class, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is, then add the following command as the first command in your script:
 
 ```powershell
  using module .\SQLSimplePS.psm1
@@ -58,7 +48,7 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 
 ## Single line execute
 
-To add a single row of data, we can use a single command, the static function ``Execute()`` of SQLSimple:
+To add a single row of data, the static function ``Execute()`` can be used:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -68,7 +58,7 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 [SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) VALUES('First Test', 7, 12.3)", $connectionString)
 ```
 
-This will not return anything, however if we add an [OUTPUT clause]( https://docs.microsoft.com/en-us/sql/t-sql/queries/output-clause-transact-sql) the return will be “2” as the second row has the ID of 2
+This will not return anything, however if we add an [OUTPUT clause]( https://docs.microsoft.com/en-us/sql/t-sql/queries/output-clause-transact-sql) the return will be “2” as the second row has the ID of 2:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -78,9 +68,8 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 [SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
 ```
 
-``Execute()`` only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). 
+``Execute()`` only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). To query the database, use the ``Query()`` command which returns a hash table. In case you are new to hash tables, please read [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
 
-If you want to query the database, use the ``Query()`` command which returns a hash table. In case you are new to hash tables, please see [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
 ```powershell
 using module .\SQLSimplePS.psm1
 
@@ -104,11 +93,9 @@ NumericValue                   45,66
 
 ## Transaction isolation level
 
-SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* which works best for most tasks.
+SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* which works best for most tasks. However, you might want to run commands in databases that do not support Snapshot isolation. When this happens, you will receive the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*
 
-However, you might want to run command in databases that do not support Snapshot isolation. This will cause the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*
-
-Both ``Execute()`` and ``Query()`` support to specify a different isolation level:
+But you can specify a different isolation level for both ``Execute()`` and ``Query()``:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -332,24 +319,19 @@ SQLCommandTemplate offers the following templates:
 
 * Delete
   * ``DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN_EQUALS_PARAMETER@@;``
-
 * DeleteReturnID
   * ``DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID WHERE @@COLUMN_EQUALS_PARAMETER@@;``
-
 * DeleteAll
   * ``DELETE FROM @@OBJECT_NAME@@;``
-
 * DeleteAllReturnID
   * ``DELETE FROM @@OBJECT_NAME@@ OUTPUT Deleted.ID;``
-
 * Insert
   * ``INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);``
-
 * InsertReturnID
   * ``INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) OUTPUT Inserted.ID VALUES(@@PARAMETER@@);``
             
 
-In case you miss an UPDATE statement, there is no template for this as a typical UPDATE statement can contain the same column for the new value as well as being used in the WHERE clause (``UPDATE dbo.TestTable SET Name='New Name' where Name='First Test'``). I have not found a way to implement this correctly. 
+In case you miss an UPDATE template, there is no template for this. A typical UPDATE statement can contain the same column for the new value as well as being used in the WHERE clause (``UPDATE dbo.TestTable SET Name='New Name' where Name='First Test'``). I have not found a way to implement this correctly. 
 
 ## Using the DATA property
 
@@ -377,9 +359,9 @@ To define these mappings, the method ``AddMapping()`` is used which creates a SQ
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
 ```
 
-This line means that the mapping between the column *Name* should get the value of the *NameProp* property and the data type is NVarChar. 
+This line means that the mapping between the column *Name* should get the value of the *NameProp* property and the data type is NVarChar.
 
-The full example:
+The final code is as follows: 
 
 ```powershell
 $sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
@@ -496,6 +478,9 @@ Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
 ## Contributions
 
 Any constructive contribution is very welcome! If you encounter a bug or have an idea for an improvment, please open a [new issue](https://github.com/texhex/SQLSimplePS/issues/new).
+
+## License
+``SQLSimplePS.psm1`` and ``MPSXM.psm1``: Copyright © 2015-2018 [Michael Hex](http://www.texhex.info/). Licensed under the **Apache 2 License**. For details, please see LICENSE.txt.
 
 
 
