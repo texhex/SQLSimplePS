@@ -130,9 +130,11 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 ...
 ```
 
-## Do not use string replacement 
+---
 
 :exclamation: Please do not think about using these functions and some string replacement to get your task done. String replacement and SQL is a **horrifying bad idea** - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement.
+
+---
 
 
 ## Using parametrized queries
@@ -281,55 +283,52 @@ $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decim
 
 $sqls.Execute()
 ```
+---
 
+:exclamation: Note that *@@OBJECT_NAME@@* and other *@@* replacement values **use string replacement and are therefore open to string injection**. They exist to make the coding easier, not for dynamic replacement. *NEVER EVER* set them to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.
 
-:exclamation: Note that @@OBJECT_NAME@@ and other @@ replacement values **use string replacement and are therefore open to string injection**. These values should *NEVER EVER* be set to anything you didn't coded directly. Means: Do not use any variable data that is user supplied or comes from a source that you do not control. When in doubt, do not use them.
-
+---
 
 To add a command to an instance of SQL Simple, you have several possibilities:
 
 * When the command is a simple SQL command, use the ``AddCommand()`` with a string
   * ``$sqls.AddCommand("DELETE FROM dbo.TestTable")``
-* Use one of the SQL Command Templates with ``AddCommand()``
+* Use one of the SQLCommandTemplates with ``AddCommand()``
   * ``$sqls.AddCommand([SQLCommandTemplate]::Delete)``
 * To have the command object returned (e.g. to add mappings), use the ``AddCommandEx()`` function
-  * ``$command=$sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue < @IntValue")``
-* SQL templates are also supported by ``AddCommandEx()`` 
-  * ``$command=$sqls.AddCommandEx([SQLCommandTemplate]::Delete)``
+  * ``$command = $sqls.AddCommandEx("DELETE FROM dbo.TestTable WHERE IntValue < @IntValue")``
+* The SQLCommandTemplate parameter is also supported by ``AddCommandEx()`` 
+  * ``$command = $sqls.AddCommandEx([SQLCommandTemplate]::Delete)``
 * Creating it with the ``::new`` operator, then adding the object with ``AddCommand()``. This can be handy in case you need to run the same command against several databases
   * ``$deleteCommand = [SQLSimpleCommand]::new("DELETE FROM dbo.TestTable")``
   * ``$sqls.AddCommand($deleteCommand)``
-* Creating it with the ``::new`` operator and using a SQL template, then adding the object with ``AddCommand()``. 
+* Creating it with the ``::new`` operator and using a SQLCommandTemplate, then adding the object with ``AddCommand()``. 
   * ``$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)``
   * ``$sqls.AddCommand($deleteCommand)``
 
 
-Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these simple tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@`` and ``@@PARAMETER@@`` replacement values. When using these templates using the SQLCommandTemplate enumeration, the code looks like this:
+Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these tasks that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@``, ``@@PARAMETER@@`` and  ``@@COLUMN_EQUALS_PARAMETER@@`` replacement values. When using these templates (using the SQLCommandTemplate enumeration), the code looks like this:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname="dbo.TestTable"
 
-$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)
+$deleteCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Delete)
 # [SQLCommandTemplate]::Delete translates to:
 # DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;
-
 $deleteCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
-$sqls.AddCommand($deleteCommand)
 
-$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+$insertCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Insert)
 # [SQLCommandTemplate]::Insert translates to:
 # INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);
-
 $insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decimal)
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
 
-* The insert and update  templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an column of this name or it isn't the primary key, the templates are of no use for you.
+* The insert and update templates contain an OUTPUT clause for the field named ``ID``. If your table does not contain an column of this name or it isn't the primary key, the templates are of no use for you.
 * Beside that, the insert template should work for most cases
 * Both the UPDATE and the DELETE statement can only handle a single mapping value. If more mappings are used, the command will fail
 
@@ -367,7 +366,7 @@ The full example:
 ```powershell
 $sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
 
-$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+$insertCommand = $sqls.AddCommandEx("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
 #Add the mapping
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
@@ -380,9 +379,6 @@ $insertCommand.AddData($myData1)
 #Add the data #2
 $myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
 $insertCommand.AddData($myData2)
-
-#Add the insert command that includes the mapping and the data
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
@@ -445,7 +441,7 @@ $sqls.Objectname="dbo.TestTable"
 $sqls.AddCommand("DELETE FROM dbo.TestTable")
 
 #Use standard insert template
-$insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
+$insertCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Insert)
 
 #Create the mapping
 $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
@@ -454,8 +450,6 @@ $insertCommand.AddMapping("NumericValue", "CPU", [Data.SqlDbType]::Decimal)
 
 #Assign the data property which holds the data that is used as the values for the mapping
 $insertCommand.Data=$procs
-
-$sqls.AddCommand($insertCommand)
 
 $sqls.Execute()
 ```
