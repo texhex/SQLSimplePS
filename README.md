@@ -329,7 +329,7 @@ dbo.TestTable.IntValue = Hash table "MyCount"
 dbo.TestTable.NumericValue = Hash table "NumericVal"
 ```
 
-To define these mappings, the method ``AddMapping()`` which creates a SQLSimpleColumn internally:
+To define these mappings, the method ``AddMapping()`` is used which creates a SQLSimpleColumn internally:
 
 ```powershell
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
@@ -360,9 +360,7 @@ $sqls.AddCommand($insertCommand)
 $sqls.Execute()
 ```
 
-
-
-For the next example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more between 0 and 10 CPU time.
+The following example should make this more clear. We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
@@ -387,7 +385,7 @@ dbo.TestTable.IntValue = Get-Process Handles
 dbo.TestTable.NumericValue = Get-Process CPU 
 ```
 
-The code to create this mapping is creating a SQLSimpleColumn which requires three parameters:
+The code to create this mapping is again a SQLSimpleColumn which requires three parameters:
 
 * **Column Name** (*Name*) - The name of the SQL Server column the data should go
 * **Property Name** (*ProcessName*) - The name of the property from data to get the value
@@ -403,7 +401,6 @@ $insertCommand.AddMapping($col)
 To declare it in a single line and add it, use this syntax:
 ```powershell
 $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
-
 ```
 
 This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
