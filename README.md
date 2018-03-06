@@ -335,7 +335,9 @@ To define these mappings, the method ``AddMapping()`` is used which creates a SQ
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
 ```
 
-This line means that the mapping between the column *Name* should get the value of the *NameProp* property and the data type is NVarChar. The full code:
+This line means that the mapping between the column *Name* should get the value of the *NameProp* property and the data type is NVarChar. 
+
+The full example:
 
 ```powershell
 $sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
@@ -405,7 +407,7 @@ $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
 
 This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
 
-The entire code looks like this:
+The entire code, which used replacement values and SQL templates:
 
 ```powershell
 #Get list of processes
