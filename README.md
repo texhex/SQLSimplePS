@@ -350,11 +350,13 @@ For the first column, the SQLSimpleColumn would be declared as follows:
 
 ```powershell
 $col=[SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMapping($col)
 ```
 
 To declare it in a single line and add it, use this syntax:
 ```powershell
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
+$insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
+
 ```
 
 This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
@@ -375,9 +377,9 @@ $sqls.AddCommand("DELETE FROM dbo.TestTable")
 $insertCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Insert)
 
 #Create the mapping
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar) ) 
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("IntValue", "Handles", [Data.SqlDbType]::int) ) 
-$insertCommand.AddMapping( [SQLSimpleColumn]::new("NumericValue", "CPU", [Data.SqlDbType]::Decimal) ) 
+$insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
+$insertCommand.AddMapping("IntValue", "Handles", [Data.SqlDbType]::int) 
+$insertCommand.AddMapping("NumericValue", "CPU", [Data.SqlDbType]::Decimal) 
 
 #Assign the data property which holds the data that is used as the values for the mapping
 $insertCommand.Data=$procs
