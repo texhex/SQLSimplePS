@@ -311,11 +311,58 @@ $sqls.Execute()
 
 ## Using the DATA property
 
-Until now, all command only added a single row but in most cases you want to deal with more rows.
+Until now, all command only added a single row but in most cases you want to deal with more rows. SQL Simple supports this by using the ``Data`` property and mapping the properties of these external objects to the SQL Server object. 
 
-SQL Simple supports this by using the ``Data`` property and mapping the properties of these external objects to the SQL Server object. 
+Suppose you have two hash tables and they should be stored in *TestTable*
 
-For this example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more between 0 and 10 CPU time.
+```powershell
+$myData1 = @{ NameProp = "Chain Test 4"; MyCount = 4; NumericVal = 44.44; }
+
+$myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
+```
+
+The mapping in this case would be like this:
+
+```powershell
+dbo.TestTable.Name = Hash table "NameProp"
+dbo.TestTable.IntValue = Hash table "MyCount"
+dbo.TestTable.NumericValue = Hash table "NumericVal"
+```
+
+To define these mappings, the method ``AddMapping()`` which creates a SQLSimpleColumn internally:
+
+```powershell
+$insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
+```
+
+This line means that the mapping between the column *Name* should get the value of the *NameProp* property and the data type is NVarChar. The full code:
+
+```powershell
+$sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
+
+$insertCommand = [SQLSimpleCommand]::new("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
+
+#Add the mapping
+$insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
+$insertCommand.AddMapping("IntValue", "MyCount", [Data.SqlDbType]::int) 
+$insertCommand.AddMapping("NumericValue", "NumericVal", [Data.SqlDbType]::Decimal) 
+
+#Add the data #1
+$myData1 = @{ NameProp = "Chain Test 4"; MyCount = 4; NumericVal = 44.44; }
+$insertCommand.AddData($myData1)
+#Add the data #2
+$myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
+$insertCommand.AddData($myData2)
+
+#Add the insert command that includes the mapping and the data
+$sqls.AddCommand($insertCommand)
+
+$sqls.Execute()
+```
+
+
+
+For the next example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
