@@ -362,7 +362,7 @@ $sqls.AddCommand($insertCommand)
 $sqls.Execute()
 ```
 
-The following example should make this more clear. We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use more between 0 and 10 CPU time.
+The following example should make this more clear. We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
