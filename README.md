@@ -292,9 +292,9 @@ $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decim
 $sqls.Execute()
 ```
 
-This command will first delete any record with a IntValue of 2 and then add a new record. You can add as many command as you require. 
+This command will first delete any record with a IntValue of 2 and then add a new record. 
 
-To add a command to an instance of SQL Simple, you have several possibilities:
+You can add as many commands to an instance of SQLSimple as you require. To do so, you have several possibilities:
 
 * When the command is a simple SQL command, use the ``AddCommand()`` with a string
   * ``$sqls.AddCommand("DELETE FROM dbo.TestTable")``
