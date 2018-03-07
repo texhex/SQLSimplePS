@@ -92,6 +92,13 @@ IntValue                       9
 NumericValue                   45,66
 ```
 
+---
+
+:exclamation: Please do not think about using these functions and some string replacement to get your task done. String replacement and SQL is a **horrifying bad idea** - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement.
+
+---
+
+
 ## Transaction isolation level
 
 SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* which works best for most tasks. However, you might want to run commands in databases that do not support Snapshot isolation. When this happens, you will receive the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*
@@ -117,12 +124,6 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 
 ...
 ```
-
----
-
-:exclamation: Please do not think about using these functions and some string replacement to get your task done. String replacement and SQL is a **horrifying bad idea** - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement.
-
----
 
 
 ## Using parametrized queries
@@ -271,6 +272,7 @@ To add a command to an instance of SQL Simple, you have several possibilities:
   * ``$deleteCommand = [SQLSimpleCommand]::new([SQLCommandTemplate]::Delete)``
   * ``$sqls.AddCommand($deleteCommand)``
 
+
 ## SQL command templates
 
 When chaining several commands, you can use the ``@@OBJECT_NAME@@`` replacement value and the ``Objectname`` property to write the object name only once. The below code makes use of this and is, beside from this change, the exact same as the last example. 
@@ -334,6 +336,7 @@ SQLCommandTemplate offers the following templates:
 
 In case you miss an UPDATE template, there is no template for this. A typical UPDATE statement can contain the same column for the new value as well as being used in the WHERE clause (``UPDATE dbo.TestTable SET Name='New Name' where Name='First Test'``). I have not found a way to implement this correctly. 
 
+
 ## Using the DATA property
 
 Until now, all command only added a single row but in most cases you want to deal with more rows. SQL Simple supports this by using the ``Data`` property and mapping the properties of these external objects to the SQL Server object. 
@@ -354,7 +357,7 @@ dbo.TestTable.IntValue = Hash table "MyCount"
 dbo.TestTable.NumericValue = Hash table "NumericVal"
 ```
 
-To define these mappings, the method ``AddMapping()`` is used which creates a SQLSimpleColumn internally:
+To define these mappings, the method ``AddMapping()`` is used that creates a SQLSimpleColumn instance internally:
 
 ```powershell
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
@@ -384,7 +387,9 @@ $insertCommand.AddData($myData2)
 $sqls.Execute()
 ```
 
-The following example should make this more clear. We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
+The following example should make this more clear:
+
+We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
@@ -415,7 +420,7 @@ The code to create this mapping is again a SQLSimpleColumn which requires three 
 * **Property Name** (*ProcessName*) - The name of the property from data to get the value
 * **Data Type** (*NVarChar*) - The data type of the column in SQL Server
 
-For the first column, the SQLSimpleColumn would be declared as follows:
+For the first column, the SQLSimpleColumn is declared as follows:
 
 ```powershell
 $col=[SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
@@ -427,9 +432,7 @@ To declare it in a single line and add it, use this syntax:
 $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
 ```
 
-This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
-
-The entire code, which used replacement values and SQL templates:
+This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. The entire code, when using replacement values and SQL templates:
 
 ```powershell
 #Get list of processes
@@ -439,7 +442,7 @@ $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname="dbo.TestTable"
 
 #First delete all rows
-$sqls.AddCommand("DELETE FROM dbo.TestTable")
+$sqls.AddCommand([SQLCommandTemplate]::DeleteAll)
 
 #Use standard insert template
 $insertCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Insert)
@@ -476,9 +479,11 @@ Handles  NPM(K)    PM(K)      WS(K)     CPU(s)     Id  SI ProcessName
     382      22    18868      31940       1,00   9572   1 ApplicationFrameHost
 ```
 
+
 ## Contributions
 
 Any constructive contribution is very welcome! If you encounter a bug or have an idea for an improvment, please open a [new issue](https://github.com/texhex/SQLSimplePS/issues/new).
+
 
 ## License
 ``SQLSimplePS.psm1`` and ``MPSXM.psm1``: Copyright © 2015-2018 [Michael Hex](http://www.texhex.info/). Licensed under the **Apache 2 License**. For details, please see LICENSE.txt.
