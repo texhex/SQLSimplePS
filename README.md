@@ -357,7 +357,7 @@ dbo.TestTable.IntValue = Hash table "MyCount"
 dbo.TestTable.NumericValue = Hash table "NumericVal"
 ```
 
-To define these mappings, the method ``AddMapping()`` is used which creates a SQLSimpleColumn internally:
+To define these mappings, the method ``AddMapping()`` is used that creates a SQLSimpleColumn instance internally:
 
 ```powershell
 $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar) 
@@ -387,7 +387,9 @@ $insertCommand.AddData($myData2)
 $sqls.Execute()
 ```
 
-The following example should make this more clear. We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
+The following example should make this more clear:
+
+We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
@@ -418,7 +420,7 @@ The code to create this mapping is again a SQLSimpleColumn which requires three 
 * **Property Name** (*ProcessName*) - The name of the property from data to get the value
 * **Data Type** (*NVarChar*) - The data type of the column in SQL Server
 
-For the first column, the SQLSimpleColumn would be declared as follows:
+For the first column, the SQLSimpleColumn is declared as follows:
 
 ```powershell
 $col=[SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
@@ -430,9 +432,7 @@ To declare it in a single line and add it, use this syntax:
 $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
 ```
 
-This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
-
-The entire code, which used replacement values and SQL templates:
+This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. The entire code, when using replacement values and SQL templates:
 
 ```powershell
 #Get list of processes
@@ -442,7 +442,7 @@ $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname="dbo.TestTable"
 
 #First delete all rows
-$sqls.AddCommand("DELETE FROM dbo.TestTable")
+$sqls.AddCommand([SQLCommandTemplate]::DeleteAll)
 
 #Use standard insert template
 $insertCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Insert)
