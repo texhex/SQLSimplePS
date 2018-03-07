@@ -220,6 +220,45 @@ $sqls.Query()
 This query will return three rows: First Test, Second Test and Third Test as their IntValue are below 12.
 
 
+## Connection string from external file
+
+In case you have several script files that all share the same connection string, you can store the connection string in an external file by using the static function ``CreateFromConnectionStringFile()``.
+
+This function will read the content of the ``ConnectionString.conf`` located in the same folder as your script and return a SQLSimple instance with the ConnectionString set. 
+
+
+```powershell
+#Use the connection string from ConnectionString.conf in the script folder
+$sqls = [SQLSimple]::CreateFromConnectionStringFile()
+
+write-host "Database connection string: $($sqls.ConnectionString)"
+
+$sqls.AddCommand("SELECT * from dbo.TestTable")
+
+$sqls.Query()
+```
+
+The file does not have any special format, SQL Simple will just read the entire content and use it as connection string:
+
+```
+Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;
+```
+
+In case you want to use more than one connection string file, this is also possible:
+
+```powershell
+#Use the connection string from file server1.connection stored in script folder
+$sqls = [SQLSimple]::CreateFromConnectionStringFile("server1.connection")
+
+write-host "Database connection string: $($sqls.ConnectionString)"
+
+$sqls.AddCommand("SELECT * from dbo.TestTable")
+
+$sqls.Query()
+```
+
+
+
 ## Using several parametrized queries at once
 
 SQL Simple supports adding more than one command and execute all in one go. A typical example is to clear a table before adding new data. 
