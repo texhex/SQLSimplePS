@@ -1,5 +1,5 @@
 # SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.4.4
+# Version 1.5.1
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -159,28 +159,28 @@ class SQLSimple
     SQLSimple([string] $ConnectionString)
     {
         $this.Init()
-        $this.ConnectionString = $ConnectionString
+        $this.InitConnectionString($ConnectionString)
     }
 
     SQLSimple([string] $Objectname, [string] $ConnectionString)
     {
-        $this.Init()
-        $this.ObjectName = $Objectname
-        $this.ConnectionString = $ConnectionString
+        $this.Init()        
+        $this.InitConnectionString($ConnectionString)
+        $this.ObjectName = $Objectname        
     }
 
     SQLSimple([string] $ConnectionString, [System.Data.IsolationLevel] $IsolationLevel)
     {
         $this.Init()
-        $this.ConnectionString = $ConnectionString
+        $this.InitConnectionString($ConnectionString)
         $this.TransactionIsolationLevel = $IsolationLevel
     }
 
     SQLSimple([string] $Objectname, [string] $ConnectionString, [System.Data.IsolationLevel] $IsolationLevel)
     {
         $this.Init()
-        $this.ObjectName = $Objectname
-        $this.ConnectionString = $ConnectionString
+        $this.InitConnectionString($ConnectionString)
+        $this.ObjectName = $Objectname        
         $this.TransactionIsolationLevel = $IsolationLevel
     }
 
@@ -192,6 +192,68 @@ class SQLSimple
         $this.TransactionIsolationLevel = [System.Data.IsolationLevel]::Snapshot
     }
 
+    hidden [void] InitConnectionString([string] $ConnectionString)
+    {
+        if ( $ConnectionString.Length -le 0)
+        {
+            throw "SQLSimple: ConnectionString can not be empty"
+        }
+
+        $this.ConnectionString=$ConnectionString
+    }
+
+    #This function is not hidden as there might be cases where we need the content
+    static [string] ReadConnectionStringFile([string] $Filename)
+    {
+        if ( $Filename.Length -le 0)
+        {
+           $Filename="$PSScriptRoot\ConnectionString.conf"
+        }
+
+        $conString=Get-Content $FileName -ErrorAction Stop -Raw # -Encoding UTF8 
+
+        if ( $conString.Length -le 0)
+        {
+            throw "SQLSimple: Trying to read the connection string from file [$FileName] failed as the file is emtpy"
+        }
+
+        #Clean up
+        $conString=Get-TrimmedString -RemoveDuplicates $conString
+
+        return $conString
+    }
+
+    static [SQLSimple] CreateFromConnectionStringFile()
+    {
+        return [SQLSimple]::CreateFromConnectionStringFile("")
+    }
+
+    static [SQLSimple] CreateFromConnectionStringFile([string] $Filename)
+    {
+        $conString=[SQLSimple]::ReadConnectionStringFile($Filename)
+        $sqls=[SQLSimple]::new($conString)
+        return $sqls
+    }
+
+    #I think, given the name of the function, the only supported parameter should be #$Filename. 
+    #But I leave these others in place if I ever change my mind. 
+    <#
+    static [SQLSimple] CreateFromConnectionStringFile([string] $Objectname)
+    {
+        return [SQLSimple]::CreateFromConnectionStringFile("", $Objectname)
+    }    
+    static [SQLSimple] CreateFromConnectionStringFile([string] $Filename, [string] $Objectname)
+    {
+        return [SQLSimple]::CreateFromConnectionStringFile($Filename, $ObjectName, [System.Data.IsolationLevel]::Snapshot)
+    }    
+    static [SQLSimple] CreateFromConnectionStringFile([string] $Filename, [string] $Objectname, [System.Data.IsolationLevel] $IsolationLevel)
+    {
+        $sqls = [SQLSimple]::CreateFromConnectionStringFile($FileName)
+        $sqls.Objectname=$Objectname
+        $sqls.TransactionIsolationLevel=$IsolationLevel        
+        return $sqls
+    }
+    #> 
 
     #Replacement tokens
     hidden static [string] $ObjectNameToken = "@@OBJECT_NAME@@"
@@ -234,11 +296,11 @@ class SQLSimple
     #Creates a command, adds it to the list and returns it
     #I have no idea what the best naming for this function would be:
     #? [SQLSimpleCommand] AddCommandEx([string] $SQLTemplate)
+    #? [SQLSimpleCommand] AddCommand2([string] $SQLTemplate)
     #? [SQLSimpleCommand] AppendCommand([string] $SQLTemplate)
     #? [SQLSimpleCommand] CreateCommand([string] $SQLTemplate)
     #? [SQLSimpleCommand] AttachCommand([string] $SQLTemplate)
     #? [SQLSimpleCommand] AddCommandAndReturn([string] $SQLTemplate)
-    #? [SQLSimpleCommand] AddCommand2([string] $SQLTemplate)
     [SQLSimpleCommand] AddCommandEx([string] $SQLTemplate)
     {
         $command = [SQLSimpleCommand]::new($SQLTemplate)
