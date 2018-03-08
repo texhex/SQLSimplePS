@@ -4,16 +4,16 @@ SQL Simple aims to make handling SQL Server data with PowerShell easier and more
 
 * Static functions that can be used as "single line commands" to run against SQL Server (``Execute()`` returns single values, while ``Query()`` returns hash tables)
 * Chaining several commands that will execute in a single transaction
-* It defaults to SNAPSHOT ISOLATION but any other isolation level can also be used
-* Parametrized queries are fully supported and adding a parameter and it's value is done in a single line 
+* Parametrized queries are fully supported and adding a parameter and its value is done in a single line 
 * Several SQL templates are available so for simple tasks, you do not need to write any SQL
 * It can map the properties of an external source object to parameters which allows to use the source objects directly instead of copying them as parameter values first
-* This also applies to an array/list/collection of external source objects
+* This also applies to an array/list/collection of external data objects
+* It defaults to SNAPSHOT ISOLATION but any other isolation level can also be used
 
 
 ## Usage
 
-As SQLSimple is a class, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is, then add the following command as the first command in your script:
+As SQ Simple is implemented as a class, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is, then add the following command as the first command in your script:
 
 ```powershell
  using module .\SQLSimplePS.psm1
@@ -21,7 +21,7 @@ As SQLSimple is a class, it requires at least PowerShell 5.0. Copy ``SQLSimplePS
  
 ## Preparation for these examples
 
-In order to execute these examples, please create a new database in your SQL Server called “TestDB”. When done, please execute this command which enabled Snapshot Isolation and creates a test table.
+In order to execute these examples, please create a new database in your SQL Server called “TestDB”. When done, please execute this command which enabl Snapshot Isolation and create a test table.
 
 ```sql
 Use [TestDB]
@@ -41,7 +41,7 @@ GO
 
 ``` 
 
-This Connection String is then used to connect to the database, which assumes a local installed SQL Server Express Edition. Please change it to fit your environment.
+This connection string is used in all examples to connect to the database. It assumes a local installed SQL Server Express Edition; please change it to fit your environment.
 
 ```
 $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
@@ -49,7 +49,7 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 
 ## Single line execute
 
-To execute a simple SQL command (no pun intended) like a single INSERT, the static function ``Execute()`` can be used:
+To execute a simple SQL command (no pun intended) like an INSERT, the static function ``Execute()`` can be used:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -130,7 +130,7 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 
 ## Using parametrized queries
 
-The static methods work for simple tasks, but for more complex tasks use an instance of SQLSimple and add instance(s) of SQLSimpleCommand to it. 
+The static methods work for simple tasks, but for more complex tasks use an instance of SQLSimple and add commands to it. 
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -179,11 +179,8 @@ $sqls.Execute()
 
 This will return 4, as this is the ID of the row that was inserted.
 
-One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster - but in normal scenarios this effect is neglectable. 
+One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster - but in normal scenarios this effect is neglectable. What makes them great however is that they are nearly immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)). Suppose we would use string replacement and we get a name like this:
 
-What makes them great however is that they are nearly immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)).
-
-Suppose we would use string replacement and we get a name like this:
 ```sql
 '); DELETE FROM DBO.USERS; GO --'
 ```
@@ -225,9 +222,7 @@ This query will return three rows: First Test, Second Test and Third Test as the
 
 ## Connection string from external file
 
-In case you have several script files that share the same connection string, you can store it in an external file and use it with the static function ``CreateFromConnectionStringFile()``.
-
-This function will read the content of the ``ConnectionString.conf`` located in the same folder as your script and return a SQLSimple instance with the ConnectionString set to the content of the file.
+In case you have several script files that share the same connection string, you can store it in an external file and use it with the static function ``CreateFromConnectionStringFile()``. This function will read the content of the ``ConnectionString.conf`` located in the same folder as your script and return a SQLSimple instance with the ConnectionString set to the content of the file.
 
 
 ```powershell
@@ -420,17 +415,18 @@ $insertCommand.AddMapping("Name", "NameProp", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMapping("IntValue", "MyCount", [Data.SqlDbType]::int) 
 $insertCommand.AddMapping("NumericValue", "NumericVal", [Data.SqlDbType]::Decimal) 
 
-#Add the data #1
+#Add data #1
 $myData1 = @{ NameProp = "Chain Test 4"; MyCount = 4; NumericVal = 44.44; }
 $insertCommand.AddData($myData1)
-#Add the data #2
+
+#Add data #2
 $myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
 $insertCommand.AddData($myData2)
 
 $sqls.Execute()
 ```
 
-As we have add two data objects to ``$insertCommand``, SQL Simple will run the second command two times, so both items are added to *TestTable*.
+As we have added two data objects to ``$insertCommand``, SQL Simple will run the second command two times, so both items are inserted into *TestTable*.
 
 
 ## Using the DATA property directly
@@ -468,7 +464,7 @@ The code to create this mapping is again a SQLSimpleColumn which requires three 
 * **Property Name** (*ProcessName*) - The name of the property from data to get the value
 * **Data Type** (*NVarChar*) - The data type of the column in SQL Server
 
-For the first column, the SQLSimpleColumn is declared as follows:
+For the first column, the mapping is declared as follows:
 
 ```powershell
 $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
@@ -511,7 +507,7 @@ $insertCommand.Data=$procs
 $sqls.Execute()
 ```
 
-When executed, all running processes are saved to *TestTable* and we can query the table for ApplicationFrameHost (first entry):
+When executed, all processes from ``$procs`` are saved to *TestTable* and we can query the table for ApplicationFrameHost (first entry):
 
 ```powershell
 [SQLSimple]::Query("SELECT * FROM TestTable where IntValue=382", $connectionString)
