@@ -49,7 +49,7 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 
 ## Single line execute
 
-To add a single row of data, the static function ``Execute()`` can be used:
+To execute a simple SQL command (no pun intended) like a single INSERT, the static function ``Execute()`` can be used:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -69,7 +69,9 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 [SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
 ```
 
-``Execute()`` only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). To query the database, use the ``Query()`` command which returns a hash table. In case you are new to hash tables, please read [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
+``Execute()`` only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally). 
+
+In order to run a query and get full results (SELECT), use the ``Query()`` command which returns a hash table. In case you are new to hash tables, please read [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -94,16 +96,16 @@ NumericValue                   45,66
 
 ---
 
-:exclamation: Please do not think about using these functions and some string replacement to get your task done. String replacement and SQL is a **horrifying bad idea** - please see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection) for details. SQL Simple has methods in place to make this easy without any string replacement.
+:exclamation: Please do not think about using these functions and some string replacement to get your task done. String replacement and SQL is a **horrifying bad idea** - see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection). SQL Simple has methods in place to make this easy without any string replacement.
 
 ---
 
 
 ## Transaction isolation level
 
-SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* which works best for most tasks. However, you might want to run commands in databases that do not support Snapshot isolation. When this happens, you will receive the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*
+SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* that works best for most tasks. 
 
-But you can specify a different isolation level for both ``Execute()`` and ``Query()``:
+However, you might want to run commands in databases that do not support Snapshot isolation (running a command on a database that does not support snapshot isolation will return the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*). You can specify a different isolation level for both ``Execute()`` and ``Query()``:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -113,7 +115,7 @@ $connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; I
 [SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
 ```
 
-When using an instance of SQL Simple, you can define the isolation level like this:
+When using an instance of SQL Simple, you define the isolation level like this:
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -128,7 +130,7 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 
 ## Using parametrized queries
 
-The static methods work for simple tasks, but for more complex tasks you should create an instance of SQLSimple and add instance(s) of SQLSimpleCommand to it. To add a third row to *TestTable*, use the following code:
+The static methods work for simple tasks, but for more complex tasks use an instance of SQLSimple and add instance(s) of SQLSimpleCommand to it. 
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -146,7 +148,7 @@ This will return “3” as ID of the row that have been inserted.
 
 If this looks like more code for the exact same task, this is correct. However, this changes when we do not want to have the values inside the SQL command, but supply them seperatly using parameters.
 
-Parameters are placeholders that will be get their value a runtime and are processed by the runtime/SQL Server directly. SQL Simple expects the parameters to have the exact same name as the column they are for. The above noted SQL command looks like this when using parameters:
+Parameters are placeholders that will be get their value a runtime and are processed by the runtime/SQL Server directly. SQL Simple expects the parameters to have the exact same name as the column they are for. When using parameters, the code ist as follows: 
 
 ```sql
 INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);
@@ -159,7 +161,7 @@ $insertCommand.AddMappingWithData("IntValue", 22, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decimal)
 ```
 
-The function first expects takes the name of the column where the data goes (in this example, “Name” is the name of the column in TestTable), then the data which should be stored in this column (“Fourth Test”) and the last parameter is the data type the column has: “Name” is defined as “NVarChar”. 
+The function first expects the name of the column where the data goes (in this example, “Name” is the name of the column in TestTable), then the data which should be stored in this column (“Fourth Test”) and the last parameter is the data type the column has: “Name” is defined as “NVarChar”. 
 
 The entire code then looks like this:
 
@@ -175,16 +177,18 @@ $insertCommand.AddMappingWithData("NumericValue", 11.11, [Data.SqlDbType]::Decim
 $sqls.Execute()
 ```
 
-This will return 4, as this is the ID of the row we just inserted.
+This will return 4, as this is the ID of the row that was inserted.
 
-One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster - but in normal scenarios this effect is neglectable. What makes them great is that they are nearly immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)).
+One of the advantages is that the base SQL command is only parsed once (as only the values are different, but not the SQL itself), so they are faster - but in normal scenarios this effect is neglectable. 
+
+What makes them great however is that they are nearly immune to SQL injection (see [OWASP SQL Injection](https://www.owasp.org/index.php/SQL_Injection)).
 
 Suppose we would use string replacement and we get a name like this:
 ```sql
 '); DELETE FROM DBO.USERS; GO --'
 ```
 
-When using string replacement, we would be in big trouble, but with parameters we can do this:
+When using string replacement, we would be in big trouble, but with parameters that's no problem at all:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -204,7 +208,6 @@ $sqls.Execute()
 
 SQL Simple will return 5 as ID because *$badName* was not part of the SQL, but just a value that was replaced at runtime.
 
-
 It is also possible to query the database using parameters:
 
 ```powershell
@@ -222,9 +225,9 @@ This query will return three rows: First Test, Second Test and Third Test as the
 
 ## Connection string from external file
 
-In case you have several script files that all share the same connection string, you can store the connection string in an external file by using the static function ``CreateFromConnectionStringFile()``.
+In case you have several script files that share the same connection string, you can store it in an external file and use it with the static function ``CreateFromConnectionStringFile()``.
 
-This function will read the content of the ``ConnectionString.conf`` located in the same folder as your script and return a SQLSimple instance with the ConnectionString set. 
+This function will read the content of the ``ConnectionString.conf`` located in the same folder as your script and return a SQLSimple instance with the ConnectionString set to the content of the file.
 
 
 ```powershell
@@ -276,7 +279,7 @@ $sqls.Execute()
 
 When executed, *TestTable* will only contain one row. SQL Simple executes all commands in a **single transaction** so either all the commands will work, or the transaction is rolled back, and the database will be in the same state before the command (no changes are made). 
 
-Of course, you can also use ``AddMappingWithData()`` with several commands, but note that each command requires their own mapping. 
+You can also use ``AddMappingWithData()`` with several commands, but note that each command requires their own mapping. 
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -336,7 +339,7 @@ $sqls.Execute()
 
 ---
 
-Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these tasks and that make use of ``@@OBJECT_NAME@@``, ``@@COLUMN@@``, ``@@PARAMETER@@`` and  ``@@COLUMN_EQUALS_PARAMETER@@`` replacement values. When using these templates, using the SQLCommandTemplate enumeration, the code looks like this:
+Because deleting all records and then inserting new records is a common tasks, SQL Simple offers SQL templates that works for these tasks and that use ``@@OBJECT_NAME@@``, ``@@COLUMN@@``, ``@@PARAMETER@@`` and  ``@@COLUMN_EQUALS_PARAMETER@@`` replacement values. When using these templates, using the SQLCommandTemplate enumeration, the code looks like this:
 
 ```powershell
 $sqls = [SQLSimple]::new($connectionString)
@@ -344,12 +347,12 @@ $sqls.Objectname="dbo.TestTable"
 
 $deleteCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Delete)
 # [SQLCommandTemplate]::Delete translates to:
-# DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@;
+# DELETE FROM @@OBJECT_NAME@@ WHERE @@COLUMN@@=@@PARAMETER@@ AND @@COLUMN@@=@@PARAMETER@@ ...;
 $deleteCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
 
 $insertCommand = $sqls.AddCommandEx([SQLCommandTemplate]::Insert)
 # [SQLCommandTemplate]::Insert translates to:
-# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@) VALUES(@@PARAMETER@@);
+# INSERT INTO @@OBJECT_NAME@@(@@COLUMN@@, @@COLUMN@@ ...) VALUES(@@PARAMETER@@, @@PARAMETER@@ ...);
 $insertCommand.AddMappingWithData("Name", "Chain Test 3", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 3, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 33.33, [Data.SqlDbType]::Decimal)
@@ -376,7 +379,7 @@ SQLCommandTemplate offers the following templates:
 In case you miss an UPDATE template, there is no template for this. A typical UPDATE statement can contain the same column for the new value as well as being used in the WHERE clause (``UPDATE dbo.TestTable SET Name='New Name' where Name='First Test'``). I have not found a way to implement this correctly. 
 
 
-## Using the DATA property
+## Adding data to the DATA property
 
 Until now, all command only added a single row but in most cases you want to deal with more rows. SQL Simple supports this by using the ``Data`` property and mapping the properties of these external objects to the SQL Server object. 
 
@@ -391,9 +394,9 @@ $myData2 = @{ NameProp = "Chain Test 5"; MyCount = 5; NumericVal = 55.55; }
 The mapping in this case would be like this:
 
 ```powershell
-dbo.TestTable.Name = Hash table "NameProp"
-dbo.TestTable.IntValue = Hash table "MyCount"
-dbo.TestTable.NumericValue = Hash table "NumericVal"
+dbo.TestTable.Name = Value from hash table "NameProp" property
+dbo.TestTable.IntValue =  Value from hash table "MyCount" property
+dbo.TestTable.NumericValue =  Value from hash table "NumericVal" property
 ```
 
 To define these mappings, the method ``AddMapping()`` is used that creates a SQLSimpleColumn instance internally:
@@ -407,7 +410,8 @@ This line means that the mapping between the column *Name* should get the value 
 The final code is as follows: 
 
 ```powershell
-$sqls = [SQLSimple]::new("[dbo].[TestTable]", $connectionString)
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname="dbo.TestTable"
 
 $insertCommand = $sqls.AddCommandEx("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES(@Name, @IntValue, @NumericValue);")
 
@@ -426,9 +430,14 @@ $insertCommand.AddData($myData2)
 $sqls.Execute()
 ```
 
-The following example should make this more clear:
+As we have add two data objects to ``$insertCommand``, SQL Simple will run the second command two times, so both items are added to *TestTable*.
 
-We want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
+
+## Using the DATA property directly
+
+If you have a rather long list of objects, there is no need to add them one by one using ``AddData()``, you can just set the data property to the list. 
+
+For example, we want to save the names, CPU time and the number of handles of the currently running processes to *TestTable*. We limit the list to processes that use between 0 and 10 CPU time.
 
 ```powershell
 get-process | where-object CPU -gt 0 | where-object CPU -lt 10
@@ -462,16 +471,21 @@ The code to create this mapping is again a SQLSimpleColumn which requires three 
 For the first column, the SQLSimpleColumn is declared as follows:
 
 ```powershell
-$col=[SQLSimpleColumn]::new("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
-$insertCommand.AddMapping($col)
-```
-
-To declare it in a single line and add it, use this syntax:
-```powershell
 $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar) 
 ```
 
-This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. The entire code, when using replacement values and SQL templates:
+This mapping means that SQL Simple will query each object (which you added to the ``Data`` property) for the value of the ``ProcessName`` property and store the returned value in the ``Name`` column. 
+
+We capture all processes in the ``$procs`` variable and later on add this list directly to the ``Data`` property:
+```powershell
+$procs=get-process | where-object CPU -gt 0 | where-object CPU -lt 10
+
+...
+
+$insertCommand.Data=$procs
+```
+
+The entire code, when using replacement values and SQL templates:
 
 ```powershell
 #Get list of processes
@@ -491,7 +505,7 @@ $insertCommand.AddMapping("Name", "ProcessName", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMapping("IntValue", "Handles", [Data.SqlDbType]::int) 
 $insertCommand.AddMapping("NumericValue", "CPU", [Data.SqlDbType]::Decimal) 
 
-#Assign the data property which holds the data that is used as the values for the mapping
+#Assign the data property which holds the data that is used as values for our mapping
 $insertCommand.Data=$procs
 
 $sqls.Execute()
