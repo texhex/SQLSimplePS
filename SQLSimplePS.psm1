@@ -210,7 +210,8 @@ class SQLSimple
            $Filename="$PSScriptRoot\ConnectionString.conf"
         }
 
-        $conString=Get-Content $FileName -ErrorAction Stop -Raw # -Encoding UTF8 
+        #Raw seems to be able to read UTF-8 files with ot without BOM
+        $conString=Get-Content $FileName -ErrorAction Stop -Raw  #-Encoding UTF8 
 
         if ( $conString.Length -le 0)
         {
@@ -235,7 +236,7 @@ class SQLSimple
         return $sqls
     }
 
-    #I think, given the name of the function, the only supported parameter should be #$Filename. 
+    #I think, given the name of the function, the only supported parameter should be $Filename. 
     #But I leave these others in place if I ever change my mind. 
     <#
     static [SQLSimple] CreateFromConnectionStringFile([string] $Objectname)
