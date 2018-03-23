@@ -13,7 +13,7 @@ SQL Simple aims to make handling SQL Server data with PowerShell easier and more
 
 ## Usage
 
-As SQ Simple is implemented as a class, it requires at least PowerShell 5.0. Copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is, then add the following command as the first command in your script:
+As SQL Simple is implemented as a class, it requires at least PowerShell 5.0. To use it, [download this repository](https://github.com/texhex/SQLSimplePS/archive/master.zip), copy ``SQLSimplePS.psm1`` and ``MPSXM.psm1`` to the folder where your script is and add the following command as the first command in your script:
 
 ```powershell
  using module .\SQLSimplePS.psm1
