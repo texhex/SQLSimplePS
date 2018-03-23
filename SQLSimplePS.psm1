@@ -1,5 +1,5 @@
 # SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.5.1
+# Version 1.6.1
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -199,19 +199,23 @@ class SQLSimple
             throw "SQLSimple: ConnectionString can not be empty"
         }
 
-        $this.ConnectionString=$ConnectionString
+        $this.ConnectionString = $ConnectionString
     }
 
-    #This function is not hidden as there might be cases where we need the content
+    #These functiuons are not hidden as there might be cases where we need the content
+    static [string] ReadConnectionStringFile()
+    {
+        return ReadConnectionStringFile("")
+    }
+
     static [string] ReadConnectionStringFile([string] $Filename)
     {
         if ( $Filename.Length -le 0)
         {
-           $Filename="$PSScriptRoot\ConnectionString.conf"
+            $Filename = "$PSScriptRoot\ConnectionString.conf"
         }
 
-        #Raw seems to be able to read UTF-8 files with ot without BOM
-        $conString=Get-Content $FileName -ErrorAction Stop -Raw  #-Encoding UTF8 
+        $conString = Get-Content $FileName -ErrorAction Stop -Raw # -Encoding UTF8 
 
         if ( $conString.Length -le 0)
         {
@@ -219,7 +223,7 @@ class SQLSimple
         }
 
         #Clean up
-        $conString=Get-TrimmedString -RemoveDuplicates $conString
+        $conString = Get-TrimmedString -RemoveDuplicates $conString
 
         return $conString
     }
@@ -231,12 +235,12 @@ class SQLSimple
 
     static [SQLSimple] CreateFromConnectionStringFile([string] $Filename)
     {
-        $conString=[SQLSimple]::ReadConnectionStringFile($Filename)
-        $sqls=[SQLSimple]::new($conString)
+        $conString = [SQLSimple]::ReadConnectionStringFile($Filename)
+        $sqls = [SQLSimple]::new($conString)
         return $sqls
     }
 
-    #I think, given the name of the function, the only supported parameter should be $Filename. 
+    #I think, given the name of the function, the only supported parameter should be #$Filename. 
     #But I leave these others in place if I ever change my mind. 
     <#
     static [SQLSimple] CreateFromConnectionStringFile([string] $Objectname)
@@ -356,7 +360,7 @@ class SQLSimple
     static [array] Execute([string] $SQLQuery, [string] $ConnectionString, [System.Data.IsolationLevel] $IsolationLevel)
     {
         $sql = [SQLSimple]::new($ConnectionString, $IsolationLevel)
-        $sql.AddCommand( [SQLSimpleCommand]::new($SQLQuery) )
+        $sql.AddCommand($SQLQuery)
         return $sql.Execute()
     }
 
@@ -368,7 +372,7 @@ class SQLSimple
     static [array] Query([string] $SQLQuery, [string] $ConnectionString, [System.Data.IsolationLevel] $IsolationLevel)
     {
         $sql = [SQLSimple]::new($ConnectionString, $IsolationLevel)
-        $sql.AddCommand( [SQLSimpleCommand]::new($SQLQuery) )        
+        $sql.AddCommand($SQLQuery)        
         return $sql.Query()
     }
     
@@ -421,10 +425,14 @@ class SQLSimple
             [void]$sqlCommand.ExecuteNonQuery()             
             $sqlCommand.Dispose()
     
-            #Start the transaction - yes, even for SELECTs 
-            #"An application can perform actions such as acquiring locks to protect the transaction isolation level of SELECT statements [..]"
-            #https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql
-            $transaction = $connection.BeginTransaction( $this.TransactionIsolationLevel )                
+            #Ignore transactions if the level is Unspecified
+            if ( $this.TransactionIsolationLevel -ne [System.Data.IsolationLevel]::Unspecified )
+            {
+                #Start the transaction - yes, even for SELECTs 
+                #"An application can perform actions such as acquiring locks to protect the transaction isolation level of SELECT statements [..]"
+                #https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql
+                $transaction = $connection.BeginTransaction( $this.TransactionIsolationLevel )                
+            }
 
             foreach ($simpleCommand in $this.Commands)
             {
@@ -490,30 +498,34 @@ class SQLSimple
 
                 #All data in this SQLSimpleCommand done, next one please
             }
-    
-          
-            #All done, commit transaction
-            try
+              
+            #All commands done, check if there is a transaction we need to commit            
+            if ( $transaction -ne $null )
             {
-                $transaction.Commit()
-                $transaction = $null                    
-            }
-            catch
-            {
-                #Our commit has failed. This can happen for many reasons, but one of them is that we have requested 
-                #snapshot isolation and the database does not support it. I have no idea how we could detect this case.
-                $transaction.Dispose()
-                $transaction = $null                    
-
-                if ( $this.TransactionIsolationLevel -eq [System.Data.IsolationLevel]::Snapshot )
+                try
                 {
-                    throw "Commit failed (please make sure the database supports snapshot isolation): $($_.Exception.Message)"    
+                    $transaction.Commit()
+                    $transaction = $null                    
                 }
-                else
+                catch
                 {
-                    throw "Commit failed: $($_.Exception.Message)"    
-                }                
+                    #Our commit has failed. This can happen for many reasons, but one of them is that we have requested 
+                    #snapshot isolation and the database does not support it. I have no idea how we could detect this case.
+                    $transaction.Dispose()
+                    $transaction = $null                    
+
+                    if ( $this.TransactionIsolationLevel -eq [System.Data.IsolationLevel]::Snapshot )
+                    {
+                        throw "Commit failed (please make sure the database supports snapshot isolation): $($_.Exception.Message)"    
+                    }
+                    else
+                    {
+                        throw "Commit failed: $($_.Exception.Message)"    
+                    }                
+                }
             }
+
+            #Done
         }
         finally
         {
