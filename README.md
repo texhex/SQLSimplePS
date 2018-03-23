@@ -127,6 +127,9 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 ...
 ```
 
+To not use transactions at all, use ``[System.Data.IsolationLevel]::Unspecified``. Please note that **without** transactions a lot of command will run significantly slower than with transactions enabled. In short: Only disable transactions if a command can not be executed in a transaction, for example ``BACKUP DATABASE``.
+
+
 
 ## Using parametrized queries
 
