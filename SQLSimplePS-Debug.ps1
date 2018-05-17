@@ -1,3 +1,5 @@
+﻿using module .\SQLSimplePS.psm1
+
 #This script requires PowerShell 5.1 because we are using classes
 #requires -version 5
 
@@ -6,6 +8,7 @@ Set-StrictMode -version 2.0
 
 #Terminate script on errors 
 $ErrorActionPreference = 'Stop'
+
 
 
 
@@ -27,6 +30,7 @@ $sqls.AddCommand("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT
 $sqls.Execute()
 #>
 
+<#
 $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname = "dbo.TestTable"
 
@@ -40,11 +44,47 @@ $insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
 $insertCommand.AddMappingWithData("NumericValue", 22.22, [Data.SqlDbType]::Decimal)
 
 $sqls.Execute()
+#>
 
 
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname = "dbo.TestTable2"
+
+$sqls.AddCommand("DELETE FROM dbo.TestTable2 ")
+
+<#
+$insertCommand = $sqls.AddCommandEx("INSERT INTO @@OBJECT_NAME@@(Text, IntValue) OUTPUT Inserted.ID VALUES(@Text, @IntValue);")
+$insertCommand.AddMappingWithData("Text", "My Test", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 1, [Data.SqlDbType]::Int)
+#>
+
+$insertCommand = $sqls.AddCommandEx("INSERT INTO @@OBJECT_NAME@@(Text, IntValue) VALUES(@Text, @IntValue);")
+$insertCommand.AddMappingWithData("Text", "$null", [Data.SqlDbType]::NVarChar)
+$insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
 
 
+$sqls.Execute()
 
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.Objectname = "dbo.TestTable2"
+$sqls.AddCommand("SELECT * FROM @@OBJECT_NAME@@")
+
+$hashtable=$sqls.Query()
+
+if ( $hashtable[0].Text -eq $null )
+{
+	write-host "Text is null"
+}
+
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.AddCommand("select TOP 1 TextNull from TestTable2;")
+$result=$sqls.Execute()
+$nullValue=$result[0]
+
+
+$arg=123
 
 <#
 $procs=get-process | where-object CPU -gt 0 | where-object CPU -lt 10
@@ -96,3 +136,31 @@ $sql.Execute()
 #>
 
 
+<#
+
+CREATE TABLE [dbo].[TestTable](
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[Name] [nvarchar](50) NOT NULL,
+	[IntValue] [int] NOT NULL,
+	[NumericValue] [decimal](5, 2) NOT NULL,
+ CONSTRAINT [PK_TestTable] PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+CREATE TABLE [dbo].[TestTable2](
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[Text] [nvarchar](50) NULL,
+	[IntValue] [int] NULL,
+	[TextNull] [nvarchar](50) NULL,
+ CONSTRAINT [PK_TestTable2] PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+GO
+
+
+#>

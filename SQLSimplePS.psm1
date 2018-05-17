@@ -1,5 +1,5 @@
-# SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.6.1
+﻿# SQL Simple for PowerShell (SQLSimplePS) 
+# Version 1.6.2
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -484,8 +484,16 @@ class SQLSimple
                                     throw "Source property [$($simpleColumn.Source)] not found in data for column [$($simpleColumn.Column)]"
                                 }
                             }                        
-                
-                            $sqlCommand.Parameters["@$($simpleColumn.Column)"].Value = $value    
+                                            
+                            #Changwe $null to DBNull if needed
+                            if ( $value -eq $null )
+                            {
+                                $sqlCommand.Parameters["@$($simpleColumn.Column)"].Value = [System.DBNull]::Value                                
+                            }
+                            else
+                            {
+                                $sqlCommand.Parameters["@$($simpleColumn.Column)"].Value = $value
+                            }
                         }
     
                         #Everything is ready, go for it 
@@ -588,10 +596,18 @@ class SQLSimple
     
                         For ($curField = 0; $curField -lt $reader.FieldCount; $curField++)
                         {
-                            $row.Add( $reader.GetName($curField), $reader.GetValue($curField) )
+                            if ( -not $reader.IsDBNull($curField) )
+                            {
+                                $row.Add( $reader.GetName($curField), $reader.GetValue($curField) )
+                            }
+                            else
+                            {
+                                #Field is DBNull. Use $NULL in this case (else it would be [System.DBNull]::Value )
+                                $row.Add( $reader.GetName($curField), $null )
+                            }
                         }
     
-                        $ReturnList.Add($row)
+                        [void]$ReturnList.Add($row)
                     }
                 }
             }
@@ -606,13 +622,22 @@ class SQLSimple
             #No Full results, use ExecuteScalar()
             try
             {
-                $val = $Command.ExecuteScalar()    
+                $val = $Command.ExecuteScalar()
+
+                #Check if the value is a DBNull
+                #If ExecuteScalar returns nothing (DELETE FROM TABLE;), the value is already $NULL
+                #If ExecuteScalar is used to return a single value from a table that is NULL, the value will be DBNull
+                if ( $val -eq [System.DBNull]::Value )
+                {
+                    $val = $null
+                }
             }
             catch
             {
                 throw "Execute failed: $($_.Exception.Message) (SQL: $($Command.CommandText))"
             }
-            
+
+            #Only add a value to the array if the value is not $null
             if ( $val -ne $null)
             {
                 $returnList.Add($val)      
