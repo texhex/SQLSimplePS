@@ -1,5 +1,5 @@
 ﻿# Michael's PowerShell eXtension Module
-# Version 3.24.1
+# Version 3.28.1
 # https://github.com/texhex/MPSXM
 #
 # Copyright © 2010-2018 Michael 'Tex' Hex 
@@ -82,22 +82,22 @@ $ErrorActionPreference = 'Stop'
 
 Function Get-CurrentProcessBitness()
 {
-    <#
-  .SYNOPSIS
-  Returns information about the current powershell process.
+    
+    #.SYNOPSIS
+    #Returns information about the current powershell process.
+    #
+    #.PARAMETER Is64bit
+    #Returns $True if the current script is running as 64-bit process.
+    #
+    #.PARAMETER Is32bit
+    #Returns $True if the current script is running as 32-bit process.
+    #
+    #.PARAMETER IsWoW
+    #Returns $True if the current script is running as 32-bit process on a 64-bit machine (Windows on Windows).
+    #
+    #.OUTPUTS
+    #Boolean, depending on parameter
 
-  .PARAMETER Is64bit
-  Returns $True if the current script is running as 64-bit process.
-
-  .PARAMETER Is32bit
-  Returns $True if the current script is running as 32-bit process.
-
-  .PARAMETER IsWoW
-  Returns $True if the current script is running as 32-bit process on a 64-bit machine (Windows on Windows).
-
-  .OUTPUTS
-  Boolean, depending on parameter
-#>
     [OutputType([bool])] 
     param (
         [Parameter(ParameterSetName = "32bit", Mandatory = $True)]
@@ -158,19 +158,19 @@ Function Get-CurrentProcessBitness()
 
 Function Get-OperatingSystemBitness()
 {
-    <#
-  .SYNOPSIS
-  Returns information about the current operating system
+    
+    #.SYNOPSIS
+    #Returns information about the current operating system
+    #
+    #.PARAMETER Is64bit
+    #Returns $True if the current operating system is 64-bit
+    #
+    #.PARAMETER Is32bit
+    #Returns $True if the current operating system is 32-bit 
+    #
+    #.OUTPUTS
+    #Boolean, depending on parameter
 
-  .PARAMETER Is64bit
-  Returns $True if the current operating system is 64-bit
-
-  .PARAMETER Is32bit
-  Returns $True if the current operating system is 32-bit 
-
-  .OUTPUTS
-  Boolean, depending on parameter
-#>
     [OutputType([bool])] 
     param (
         [Parameter(ParameterSetName = "32bit", Mandatory = $True)]
@@ -207,16 +207,16 @@ Function Get-OperatingSystemBitness()
 
 Function Get-StringIsNullOrWhiteSpace()
 {
-    <#
-  .SYNOPSIS
-  Returns true if the string is either $null, empty, or consists only of white-space characters (uses [Test-String -IsNullOrWhiteSpace] internally)
+   
+    #.SYNOPSIS
+    #Returns true if the string is either $null, empty, or consists only of white-space characters (uses [Test-String -IsNullOrWhiteSpace] internally)
+    #
+    #.PARAMETER String
+    #The string value to be checked
+    #
+    #.OUTPUTS
+    #$true if the string is either $null, empty, or consists only of white-space characters, $false otherwise
 
-  .PARAMETER String
-  The string value to be checked
-
-  .OUTPUTS
-  $true if the string is either $null, empty, or consists only of white-space characters, $false otherwise
-#>
     [OutputType([bool])] 
     param (
         [Parameter(Mandatory = $True, Position = 1)]
@@ -230,16 +230,16 @@ Function Get-StringIsNullOrWhiteSpace()
 
 Function Get-StringHasData()
 {
-    <#
-  .SYNOPSIS
-  Returns true if the string contains data (does not contain $null, empty or only white spaces). Uses [Test-String -HasData] internally.
+   
+    #.SYNOPSIS
+    #Returns true if the string contains data (does not contain $null, empty or only white spaces). Uses [Test-String -HasData] internally.
+    #
+    #.PARAMETER string
+    #The string value to be checked
+    #
+    #.OUTPUTS
+    #$true if the string is not $null, empty, or consists only of white space characters, $false otherwise
 
-  .PARAMETER string
-  The string value to be checked
-
-  .OUTPUTS
-  $true if the string is not $null, empty, or consists only of white space characters, $false otherwise
-#>
     [OutputType([bool])] 
     param (
         [Parameter(Mandatory = $True, Position = 1)]
@@ -272,35 +272,34 @@ Function Test-String()
  -StartsWith
    Uses string.StartsWith() with different parameters
 #> 
-{
-    <#
-  .SYNOPSIS
-  Tests the given string for a condition 
+{   
+    #.SYNOPSIS
+    #Tests the given string for a condition 
+    #
+    #.PARAMETER String
+    #The string the specified operation should be performed on
+    #
+    #.PARAMETER IsNullOrWhiteSpace
+    #Returns true if the string is either $null, empty, or consists only of white-space characters.
+    #
+    #.PARAMETER HasData
+    #Returns true if the string contains data (not $null, empty or only white spaces)
+    #
+    #.PARAMETER Contains
+    #Returns true if string contains the text in SearchFor. A case-insensitive (ABCD = abcd) is performed by default. 
+    #
+    #.PARAMETER StartsWith
+    #Returns true if the string starts with the text in SearchFor. A case-insensitive (ABCD = abcd) is performed by default. 
+    #
+    #.PARAMETER SearchFor
+    #The string beeing sought
+    #
+    #.PARAMETER CaseSensitive
+    #Perform an operation that respect letter casing, so [ABC] is different from [aBC]. 
+    #
+    #.OUTPUTS
+    #bool
 
-  .PARAMETER String
-  The string the specified operation should be performed on
-
-  .PARAMETER IsNullOrWhiteSpace
-  Returns true if the string is either $null, empty, or consists only of white-space characters.
-
-  .PARAMETER HasData
-  Returns true if the string contains data (not $null, empty or only white spaces)
-
-  .PARAMETER Contains
-  Returns true if string contains the text in SearchFor. A case-insensitive (ABCD = abcd) is performed by default. 
-
-  .PARAMETER StartsWith
-  Returns true if the string starts with the text in SearchFor. A case-insensitive (ABCD = abcd) is performed by default. 
-  
-  .PARAMETER SearchFor
-  The string beeing sought
-
-  .PARAMETER CaseSensitive
-  Perform an operation that respect letter casing, so [ABC] is different from [aBC]. 
-
-  .OUTPUTS
-  bool
-#>
     [OutputType([bool])]  
     param (
         [Parameter(Mandatory = $false, Position = 1)] #false or we can not pass empty strings
@@ -403,17 +402,16 @@ Function Test-String()
 }
 
 
-Function Get-TempFolder() 
 #Yes, I'm aware of $env:TEMP but this will always return a 8+3 path, e.g. C:\USERS\ADMIN~1\AppData..."
 #This function returns the real path without that "~" garbage
-{
-    <#
-  .SYNOPSIS
-  Returns a path to the temporary folder without any (8+3) paths in it
 
-  .OUTPUTS
-  Path to temporary folder without an ending "\"
-#> 
+Function Get-TempFolder() 
+{   
+    #.SYNOPSIS
+    # Returns a path to the temporary folder without any (8+3) paths in it. The path does not include a "\" at the end. 
+    #
+    #.OUTPUTS
+    # Path to temporary folder without an ending "\"
 
     $temp = [System.IO.Path]::GetTempPath()
     if ( $temp.EndsWith("\") )
@@ -512,46 +510,6 @@ Function Get-ComputerLastBootupTime()
 }
 
 
-Function Get-RunningInISE()
-{
-    <#
-  .SYNOPSIS
-  Returns if the current script is executed by Windows PowerShell ISE (uses Test-IsISE internally)
-
-  .OUTPUTS
-  $TRUE if running in ISE, FALSE otherise
-#>    
-    [OutputType([bool])]    
-    param()    
-    
-    return Test-IsISE
-}
-
-
-Function Test-IsISE()
-#From: http://stackoverflow.com/a/25224840
-#      by kuujinbo (http://stackoverflow.com/users/604196/kuujinbo)
-{
-    <#
-  .SYNOPSIS
-  Returns if the current script is executed by Windows PowerShell ISE
-
-  .OUTPUTS
-  $TRUE if running in ISE, FALSE otherise
-#>    
-    [OutputType([bool])]    
-    param()    
-    
-    try 
-    {    
-        return $psISE -ne $null
-    }
-    catch 
-    {
-        return $false
-    }
-
-}
 
 
 Function Start-TranscriptTaskSequence()
@@ -584,6 +542,7 @@ Function Start-TranscriptTaskSequence()
     }
 
     $logName = Split-Path -Path $myInvocation.ScriptName -Leaf   
+    Write-Verbose "Start-TranscriptTaskSequence: Using logfile $($logName)"
  
     if ( $NewLog ) 
     {
@@ -630,6 +589,12 @@ Function Start-TranscriptIfSupported()
     {
         $Name = Split-Path -Path $myInvocation.ScriptName -Leaf   
     }
+
+    if ( -not (Test-DirectoryExists $Path) )
+    {
+        write-error "Logfile path [$Path] does not exist, defaulting to [$($env:TEMP)]" -ErrorAction Continue
+        $Path = $env:TEMP
+    }
  
     $logFileTemplate = "$($Name).log"
     $extension = "txt" #always use lower case chars only!
@@ -644,7 +609,15 @@ Function Start-TranscriptIfSupported()
 
         [uint32]$value = 1
 
-        $existing_files = Get-ChildItem -Path $Path -File -Filter $filter -Force 
+        #If the path does not exist, this line will crash with "A parameter can not be found that maches parameter FILE" which does not make any sense IMHO
+        try
+        {
+            $existing_files = Get-ChildItem -Path $Path -File -Filter $filter -Force -ErrorAction Stop
+        }
+        catch
+        {
+            throw "Unable to list files in path [$Path] with filter [$filter]: $($_.Exception.Message)"            
+        }
    
         #In case we get $null this means that no files were found. Nothing more to 
         if ( $existing_files -ne $null )
@@ -842,16 +815,16 @@ Function Read-StringHashtable()
  ...
 #>
 {
-    <#
-  .SYNOPSIS
-  Reads a hashtable from a file where the Key-Value pairs are stored as Key==Value
+    
+    #.SYNOPSIS
+    #Reads a hashtable from a file where the Key-Value pairs are stored as Key==Value
+    #
+    #.PARAMETER File
+    #The file to read the hashtable from
+    #
+    #.OUTPUTS
+    #Hashtable
 
-  .PARAMETER File
-  The file to read the hashtable from
-
-  .OUTPUTS
-  Hashtable
-#>
     [OutputType([Hashtable])]  
     param(
         [Parameter(Mandatory = $True, ValueFromPipeline = $True)]
@@ -1328,22 +1301,26 @@ Function Get-QuickReference()
 
             foreach ($qr in $qrList)
             {  
+                $txt += "`n" #start with a new line
                 $txt += "### $($qr.Name) ###`n"
+                $txt += "`n"
                 $txt += "$($qr.Synopsis)`n"
    
                 #Syntax
+                $txt += "`n"
                 $txt += "$CODE_BLOCK_START`n"
                 foreach ($syn in $qr.Syntax)
                 {
                     $txt += "$($syn)`n"
                 }          
                 $txt += "$CODE_BLOCK_END`n"
+                $txt += "`n"
 
                 #Parameters (if any)
                 foreach ($param in $qr.Parameter.GetEnumerator())
                 {
                     #Syntax is: <List> <BOLD>NAME<BOLD> - Description
-                    $txt += " - *$($param.Key)* - $($param.Value)`n"
+                    $txt += "- *$($param.Key)* - $($param.Value)`n"
                 }
           
                 $txt += "`n"
@@ -2541,6 +2518,7 @@ Function Test-IsHashtable()
     [OutputType([bool])] 
     param (
         [Parameter(Mandatory = $True, Position = 1)]
+        [AllowNull()]  #We should be able to check if NULL if a hashtable (Else we'll get "Cannot bind argument to parameter 'InputObject' because it is null.")
         $InputObject
     ) 
   
@@ -2565,4 +2543,282 @@ Function Test-IsHashtable()
     }  
 }
 
+
+Function ConvertFrom-JsonToHashtable()
+{
+    #.SYNOPSIS
+    # Converts a string or contents of a file from JSON format to a hash table
+    #
+    #.PARAMETER String
+    # A string in JSON format that should be converted to a hash table
+    #
+    #.PARAMETER File
+    # A file path to a file that stores JSON data and that will be returned as hash table
+    #
+    #.OUTPUTS
+    #Hashtable
+
+    [OutputType([Hashtable])]  
+    param(
+        [Parameter(ParameterSetName = "String", Mandatory = $True, Position = 1, ValueFromPipeline = $True)]
+        [string]$String,
+
+        [Parameter(ParameterSetName = "File", Mandatory = $True, ValueFromPipeline = $True)]
+        [string]$File
+    )
+
+    
+    switch ($PsCmdlet.ParameterSetName)
+    { 
+
+        "String"
+        {  
+            if ($PSVersionTable.PSVersion.Major -lt 6)
+            {
+                #This code is based from this blog post by Kevin Marquette 
+                #https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/?utm_source=blog&utm_medium=blog&utm_content=popref
+                #Added by commands from Mathieu Isabel
+                #https://unhandled.wordpress.com/2016/12/18/powershell-performance-tip-use-javascriptserializer-instead-of-convertto-json/
+
+                Add-Type -AssemblyName System.Web.Extensions
+                [void][Reflection.Assembly]::LoadWithPartialName("System.Web.Script.Serialization")
+                $JSSerializer = New-Object -TypeName System.Web.Script.Serialization.JavaScriptSerializer
+                return [Hashtable] ($JSSerializer.Deserialize($String, 'Hashtable')) 
+            }
+            else
+            {
+                #PowerShell 6.0 and above support -AsHashtable
+                return ConvertFrom-Json -InputObject $String -AsHashtable
+
+            }
+        }
+
+        "File"
+        {
+            if ( Test-Path $File )
+            {  
+                #-Raw can handle UTF-8 files with or without BOM
+                $jsonData = Get-Content $File -Raw
+                
+                return ConvertFrom-JsonToHashtable -String $jsonData
+            }
+            else
+            {
+                throw New-Exception -FileNotFound "The file [$file] does not exist or is not accessible"
+            }
+        }
+    }
+}
+
+
+#The default enabled security protocols for HTTPS in .NET 4.0/4.5 (and hence PowerShell) are SecurityProtocolType.Tls|SecurityProtocolType.Ssl3
+#These protocols are considered unsecure and many server have disabled them all together. Therefore, WebClient might not be able to communicate with them to HTTPS 
+#This function will enable TLS 1.2 and disable older protocols but in a way that, if PowerShell support TLS 1.3, TLS 1.3 will still be enabled (forward-compatible)
+#
+#For more details:
+#StackOverflow answer by Luke Hutton: https://stackoverflow.com/a/28333370
+#.NET API Browser: https://docs.microsoft.com/en-us/dotnet/api/system.net.servicepointmanager.securityprotocol?view=netframework-4.7#System_Net_ServicePointManager_SecurityProtocol
+
+function Set-HTTPSecurityProtocolSecureDefault()
+{
+    #.SYNOPSIS
+    # Sets the default HTTPS protocol to TLS 1.2 (and any newer protocol) while disabling unsecure protocols (SSL 3.0, TLS 1.0 and TLS 1.1) in a forward-compatible style
+
+    #Activate TLS 1.2
+    [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor [System.Net.SecurityProtocolType]'Tls12'
+
+    #Check if SSL 3.0 is enabled and if so, disable it
+    if ( [System.Net.ServicePointManager]::SecurityProtocol -band [System.Net.SecurityProtocolType]'Ssl3' ) 
+    {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bxor [System.Net.SecurityProtocolType]'Ssl3'   
+    }
+
+    #Check if TLS 1.0 is enabled and if so, disable it
+    if ( [System.Net.ServicePointManager]::SecurityProtocol -band [System.Net.SecurityProtocolType]'Tls' ) 
+    {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bxor [System.Net.SecurityProtocolType]'Tls'   
+    }
+
+    #Check if TLS 1.1 is enabled and if so, disable it
+    if ( [System.Net.ServicePointManager]::SecurityProtocol -band [System.Net.SecurityProtocolType]'Tls11' ) 
+    {
+        [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bxor [System.Net.SecurityProtocolType]'Tls11'   
+    }
+
+}
+
+#Changes 3.27
+
+Function Get-RunningInISE()
+{
+    #.SYNOPSIS
+    # Returns if the current script is executed by Windows PowerShell ISE (uses Test-IsISE internally)
+    #
+    #.OUTPUTS
+    # $TRUE if running in ISE, FALSE otherise
+    #  
+    [OutputType([bool])]    
+    param()    
+    
+    return Test-IsISE
+}
+
+
+#From: http://stackoverflow.com/a/25224840
+#      by kuujinbo (http://stackoverflow.com/users/604196/kuujinbo)
+Function Test-IsISE()
+{
+    #.SYNOPSIS
+    # Returns if the current script is executed by Windows PowerShell ISE
+    #
+    #.OUTPUTS
+    # $TRUE if running in ISE, FALSE otherise
+    #  
+    [OutputType([bool])]    
+    param()    
+    
+    try 
+    {    
+        return $psISE -ne $null
+    }
+    catch 
+    {
+        return $false
+    }
+}
+
+Function Test-RunningInEditor()
+{
+    #.SYNOPSIS
+    # Returns TRUE if the current script is executed by a editor (host) like ISE or Visual Studio Code
+    #
+    #.OUTPUTS
+    # $TRUE if running in an editor host, FALSE otherise
+    #  
+    [OutputType([bool])]    
+    param()    
+    
+    $result = $false
+
+    try 
+    {   
+        $host = Get-Host
+
+        if ( 
+            ($host.Name -eq "Windows PowerShell ISE Host") -or
+            ($host.Name -eq "Visual Studio Code Host") 
+        )
+        {
+
+            $result = $true
+        }
+
+    }
+    catch 
+    {
+        $result = $false
+    }
+    
+    return $result
+}
+
+
+#Changes 3.28.0
+
+Function Get-PropertyValueSafe()
+{
+    #.SYNOPSIS
+    # Tries to get a property value from the object and returns the replacement value if the property was not found or is null
+    #
+    #.PARAMETER InputObject
+    # The object to operate on
+    #
+    #.PARAMETER Property
+    # The name of the property to query
+    #
+    #.PARAMETER Default
+    # The value that should be used in case the property does not exist or is null
+    #
+    #.OUTPUTS
+    # The value of the property or the replacement value  
+
+    param (
+        [Parameter(Mandatory = $False, Position = 1)]
+        [AllowNull()]
+        $InputObject = $null,
+
+        [Parameter(Mandatory = $False, Position = 2)]
+        [AllowNull()]
+        $Property = $null,
+
+        [Parameter(Mandatory = $False, Position = 3)]
+        [ValidateNotNull()]
+        $Default = ""
+    )
+
+    #If either inputobject or the proerty are null, we can't do anything
+    if ( ($InputObject -eq $null) -or ($Property -eq $null) )
+    {
+        return $Default
+    }
+    else
+    {
+        #Check if the InputObject is a "normal" object or a hash table
+        if ( Test-IsHashtable $InputObject)
+        {
+            try
+            {
+                if ( $InputObject.Contains($Property) )
+                {
+                    $value = $InputObject[$Property]    
+                
+                    if ($value -ne $null)
+                    {
+                        return $value
+                    }
+                    else
+                    {
+                        return $Default
+                    }                
+                }
+                else
+                {
+                    return $Default
+                }
+            }            
+            catch 
+            {
+                return $Default
+            }      
+        }        
+        else 
+        {
+            #No hash table but normal object
+            if ( Get-Member -InputObject $InputObject -Name $Property -Membertype Properties )
+            {
+                try
+                {
+                    $value = Select-Object -InputObject $InputObject -ExpandProperty $Property
+
+                    if ($value -ne $null)
+                    {
+                        return $value
+                    }
+                    else
+                    {
+                        return $Default
+                    }
+                }            
+                catch 
+                {
+                    return $Default
+                }            
+            }
+            else
+            {
+                return $Default
+            }
+        }
+    }
+}
 
