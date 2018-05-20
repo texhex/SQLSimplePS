@@ -180,7 +180,7 @@ $value=$sqls.ExecuteScalar()
 write-host "Value is $value"
 ```
 
-Please note that, although onyl a single value is returned, *ALL* commands will be executed. There is no difference in the inner workings of ``Execute()`` and ``ExecuteScalar()``, only the output is different.
+Please note that, although only a single value is returned, *ALL* commands will be executed. There is no difference in the inner workings of ``Execute()`` and ``ExecuteScalar()``, only the output is different.
 
 ## Using parametrized queries
 
