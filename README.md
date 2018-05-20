@@ -99,7 +99,7 @@ NumericValue                   45,66
 
 ---
 
-## Executing SQL in detail
+## Executing SQL
 
 SQLSimple offers three commands to run SQL commands. All three are available as instance functions (``$sqls.Query/Execute/ExecuteScalar``) and as static functions (``[SQLSimple]::Query/Execute/ExecuteScalar()``)
 
