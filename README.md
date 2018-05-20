@@ -68,9 +68,9 @@ $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Int
 [SQLSimple]::Execute("INSERT INTO dbo.TestTable(Name, IntValue, NumericValue) OUTPUT Inserted.ID VALUES('Second Test', 9, 45.66)", $connectionString)
 ```
 
-``Execute()`` only returns an array of single values that were returned by SQL Server (it uses ExecuteScalar() internally).
+``Execute()`` returns an array of single values that were returned by SQL Server (the first column of the first row).
 
-In order to run a query and get full results (SELECT), use the ``Query()`` command which returns a hash table. In case you are new to hash tables, please read [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
+In order to run a query and get full results (SELECT), use the ``Query()`` command which returns an array of hash table. In case you are new to hash tables, please read [this excellent blog post by Kevin Marquette](https://kevinmarquette.github.io/2016-11-06-powershell-hashtable-everything-you-wanted-to-know-about/).
 
 ```powershell
 using module .\SQLSimplePS.psm1
@@ -126,6 +126,61 @@ $sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
 ```
 
 To not use transactions at all, use ``[System.Data.IsolationLevel]::Unspecified``. Please note that **without** transactions a lot of command will run significantly slower than with transactions enabled. In short: Only disable transactions if a command can not be executed in a transaction, for example ``BACKUP DATABASE``.
+
+## Executing SQL in detail
+
+SQLSimple offers three commands to run SQL commands:
+
+* Query
+* Execute
+* ExecuteScalar
+
+``Query()`` is used if you want to get full details, most likely when you use a SELECT statement. It returns an array where each element is a hash table. This allows for an easy looping using foreach():
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.AddCommand("SELECT Name, IntValue FROM dbo.TestTable;")
+$results=$sqls.Query()
+
+foreach ($row in $results)
+{
+  write-host "Item $($row.Name) has a value of $($row.IntValue)"
+}
+```
+
+Please note however, that you can use only one ``AddCommand()`` with an instance of SQLSimple if you plan to use ``Query()``. If more than one command have been added, ``Query()`` will throw an error.
+
+``Execute()`` is used if you only need limited details, mostly for INSERT or UPDATE statements. It returns an array with the value of the first column of the first row for each command executed.
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.AddCommand("SELECT 'abc';")
+$sqls.AddCommand("SELECT 'klm';")
+$sqls.AddCommand("SELECT 'xyz';")
+$results=$sqls.Execute()
+
+# This will print three rows
+foreach ($row in $results)
+{
+  write-host "Item $row"
+}
+```
+
+``ExecuteScalar()`` works the same as ``Execute()`` but will only return a single value, the very first element of the array  ``Execute()`` returns. This function can be handy if you only care about this single value and want to skip dealing with an array.
+
+
+```powershell
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.AddCommand("SELECT 'abc';")
+$sqls.AddCommand("SELECT 'klm';")
+$sqls.AddCommand("SELECT 'xyz';")
+$value=$sqls.ExecuteScalar()
+
+# Will print "Value is abc"
+write-host "Value is $value"
+```
+
+Please note that, although onyl a single value is returned, *ALL* commands will be executed. There is no difference in the inner workings of ``Execute()`` and ``ExecuteScalar()``, only the output is different.
 
 ## Using parametrized queries
 
