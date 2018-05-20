@@ -61,11 +61,9 @@ $insertCommand.AddMappingWithData("IntValue", 1, [Data.SqlDbType]::Int)
 $insertCommand = $sqls.AddCommandEx("INSERT INTO @@OBJECT_NAME@@(Text, IntValue) VALUES(@Text, @IntValue);")
 $insertCommand.AddMappingWithData("Text", "$null", [Data.SqlDbType]::NVarChar)
 $insertCommand.AddMappingWithData("IntValue", 2, [Data.SqlDbType]::Int)
-
-
 $sqls.Execute()
 
-
+<#
 $sqls = [SQLSimple]::new($connectionString)
 $sqls.Objectname = "dbo.TestTable2"
 $sqls.AddCommand("SELECT * FROM @@OBJECT_NAME@@")
@@ -76,15 +74,49 @@ if ( $hashtable[0].Text -eq $null )
 {
 	write-host "Text is null"
 }
+#>
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.AddCommand("select Name, IntValue from dbo.TestTable")
+$results=$sqls.Query()
+
+foreach ($row in $results)
+{
+	write-host "Item $($row.Name) has a value of $($row.IntValue)"
+}
 
 
 $sqls = [SQLSimple]::new($connectionString)
-$sqls.AddCommand("select TOP 1 TextNull from TestTable2;")
-$result=$sqls.Execute()
-$nullValue=$result[0]
+$sqls.AddCommand("SELECT 'abc';")
+$sqls.AddCommand("SELECT 'klm';")
+$sqls.AddCommand("SELECT 'xyz';")
+$results=$sqls.Execute()
+
+foreach ($row in $results)
+{
+	write-host "Item $row"
+}
+
+$sqls = [SQLSimple]::new($connectionString)
+$sqls.AddCommand("SELECT 'abc';")
+$sqls.AddCommand("SELECT 'klm';")
+$sqls.AddCommand("SELECT 'xyz';")
+$value=$sqls.ExecuteScalar()
+
+# Will print "Value is abc"
+write-host "Value is $value"
 
 
-$arg=123
+#$result=$sqls.ExecuteScalar()
+
+#$sqls.Execute()
+#$result=$sqls.Execute()
+#$sqls.ExecuteScalar()
+#$nullValue=$result[0]
+#write-host "Result is [$result]"
+
+
+$aaa=123
 
 <#
 $procs=get-process | where-object CPU -gt 0 | where-object CPU -lt 10

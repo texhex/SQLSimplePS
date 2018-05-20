@@ -1,5 +1,5 @@
 ﻿# SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.6.2
+# Version 1.7.1
 # https://github.com/texhex/2Inv
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
@@ -364,6 +364,18 @@ class SQLSimple
         return $sql.Execute()
     }
 
+    static [object] ExecuteScalar([string] $SQLQuery, [string] $ConnectionString)
+    {
+        return [SQLSimple]::ExecuteScalar($SQLQuery, $ConnectionString, [System.Data.IsolationLevel]::Snapshot)
+    }
+
+    static [object] ExecuteScalar([string] $SQLQuery, [string] $ConnectionString, [System.Data.IsolationLevel] $IsolationLevel)
+    {
+        $sql = [SQLSimple]::new($ConnectionString, $IsolationLevel)
+        $sql.AddCommand($SQLQuery)
+        return $sql.ExecuteScalar()
+    }
+
     static [array] Query([string] $SQLQuery, [string] $ConnectionString)
     {
         return [SQLSimple]::Query($SQLQuery, $ConnectionString, [System.Data.IsolationLevel]::Snapshot)
@@ -396,6 +408,22 @@ class SQLSimple
         $this.Validate()
 
         return $this.ExecuteSQLInternally($false)
+    }
+
+    [object] ExecuteScalar()
+    {
+        $return = $this.Execute()
+
+        if ( $return.Count -gt 0 )
+        {
+            return $return[0]
+        }
+        else
+        {
+            #No return values, return $null
+            return $null
+        }
+        
     }
 
     
@@ -631,17 +659,18 @@ class SQLSimple
                 {
                     $val = $null
                 }
+
+                #Only add a value to the array if the value is not $null
+                if ( $val -ne $null)
+                {
+                    $returnList.Add($val)      
+                }
             }
             catch
             {
                 throw "Execute failed: $($_.Exception.Message) (SQL: $($Command.CommandText))"
             }
 
-            #Only add a value to the array if the value is not $null
-            if ( $val -ne $null)
-            {
-                $returnList.Add($val)      
-            }
         }
 
     }
