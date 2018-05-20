@@ -46,7 +46,7 @@ This connection string is used in all examples to connect to the database. It as
 $connectionString="Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
 ```
 
-## Single line execute
+## Single line SQL execution
 
 To execute a simple SQL command (no pun intended) like an INSERT, the static function ``Execute()`` can be used:
 
@@ -99,37 +99,9 @@ NumericValue                   45,66
 
 ---
 
-## Transaction isolation level
-
-SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* that works best for most tasks.
-
-However, you might want to run commands in databases that do not support Snapshot isolation (running a command on a database that does not support snapshot isolation will return the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*). You can specify a different isolation level for both ``Execute()`` and ``Query()``:
-
-```powershell
-using module .\SQLSimplePS.psm1
-
-$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
-
-[SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
-```
-
-When using an instance of SQL Simple, you define the isolation level like this:
-
-```powershell
-using module .\SQLSimplePS.psm1
-
-$sqls = [SQLSimple]::new($connectionString)
-
-$sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
-
-...
-```
-
-To not use transactions at all, use ``[System.Data.IsolationLevel]::Unspecified``. Please note that **without** transactions a lot of command will run significantly slower than with transactions enabled. In short: Only disable transactions if a command can not be executed in a transaction, for example ``BACKUP DATABASE``.
-
 ## Executing SQL in detail
 
-SQLSimple offers three commands to run SQL commands:
+SQLSimple offers three commands to run SQL commands. All three are available as instance functions (``$sqls.Query/Execute/ExecuteScalar``) and as static functions (``[SQLSimple]::Query/Execute/ExecuteScalar()``)
 
 * Query
 * Execute
@@ -181,6 +153,36 @@ write-host "Value is $value"
 ```
 
 Please note that, although only a single value is returned, *ALL* commands will be executed. There is no difference in the inner workings of ``Execute()`` and ``ExecuteScalar()``, only the output is different.
+
+## Transaction isolation level
+
+SQL Simple will *always* use transactions, even for SELECT statements (see [Begin Transaction documentation, section General Remarks](https://docs.microsoft.com/en-us/sql/t-sql/language-elements/begin-transaction-transact-sql#general-remarks) why). It defaults to *Snapshot isolation* that works best for most tasks.
+
+However, you might want to run commands in databases that do not support Snapshot isolation (running a command on a database that does not support snapshot isolation will return the error *Exception calling "Commit" with "0" argument(s): This SqlTransaction has completed; it is no longer usable.*). You can specify a different isolation level as a parameter for ``Execute()``, ``ExecuteScalar()`` and ``Query()``:
+
+```powershell
+using module .\SQLSimplePS.psm1
+
+$connectionString = "Server=.\SQLEXPRESS; Database=TestDB; Connect Timeout=15; Integrated Security=True; Application Name=SQLSimpleTest;"
+
+[SQLSimple]::Query("SELECT * FROM dbo.TestTable", $connectionString, [System.Data.IsolationLevel]::Serializable)
+```
+
+When using an instance of SQL Simple, you define the isolation level like this:
+
+```powershell
+using module .\SQLSimplePS.psm1
+
+$sqls = [SQLSimple]::new($connectionString)
+
+$sqls.TransactionIsolationLevel = [System.Data.IsolationLevel]::Serializable
+
+...
+```
+
+To not use transactions at all, use ``[System.Data.IsolationLevel]::Unspecified``. Please note that **without** transactions a lot of command will run significantly slower than with transactions enabled. In short: Only disable transactions if a command can not be executed in a transaction, for example ``BACKUP DATABASE``.
+
+
 
 ## Using parametrized queries
 
