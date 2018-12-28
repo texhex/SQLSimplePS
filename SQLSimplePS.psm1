@@ -1,6 +1,6 @@
 ﻿# SQL Simple for PowerShell (SQLSimplePS) 
-# Version 1.7.1
-# https://github.com/texhex/2Inv
+# Version 1.7.2
+# https://github.com/texhex/SQLSimplePS
 #
 # Copyright (c) 2018 Michael 'Tex' Hex 
 # Licensed under the Apache License, Version 2.0. 
@@ -924,16 +924,30 @@ class SQLSimpleCommand
         if ($this.SQLTemplate.Contains([SQLSimple]::ColumnEqualsParameterToken))
         {
             $sqlPart.Clear();
+            $sqlAND=" AND "
 
             foreach ($sqlColumn in $this.ColumnMap)
             {
+                $sqlPart.Append($sqlColumn.Column)                
+                $sqlPart.Append(" = @")                
                 $sqlPart.Append($sqlColumn.Column)
-                $sqlPart.Append(" = @")
-                $sqlPart.Append($sqlColumn.Column)
-                $sqlPart.Append(" AND ")
+
+                $sqlPart.Append($sqlAND)
             }
+
+            #We can not use the following command as TrimEnd() might remove additonal characters, see https://github.com/texhex/SQLSimplePS/issues/3            
+            #$sb.Replace([SQLSimple]::ColumnEqualsParameterToken, $sqlPart.ToString().TrimEnd(" AND "))
+
+            $sqlPartString=$sqlPart.ToString()
             
-            $sb.Replace([SQLSimple]::ColumnEqualsParameterToken, $sqlPart.ToString().TrimEnd(" AND "));
+            #Ensure it ends with " AND "
+            if ( $sqlPartString.EndsWith($sqlAND) )
+            {
+                $sqlPartString = $sqlPartString.Remove($sqlPartString.Length - $sqlAND.Length)
+            }
+
+            $sb.Replace([SQLSimple]::ColumnEqualsParameterToken, $sqlPartString)
+
         }
 
         #Ensure the command ends with a ;
